@@ -132,6 +132,49 @@ describe("computeStats", () => {
   });
 });
 
+describe("weekly goal and streak", () => {
+  const sentDaysAgo = (id: string, days: number) => ({
+    application: application(id, "applied", days),
+    change: change(id, "applied", days),
+  });
+
+  function statsFor(daysAgoList: number[]) {
+    const items = daysAgoList.map((days, i) => sentDaysAgo(`a${i}`, days));
+    return computeStats(
+      items.map((item) => item.application),
+      items.map((item) => item.change),
+      NOW,
+    );
+  }
+
+  it("counts what was sent since Monday", () => {
+    // NOW is a Monday: only day 0 is in this week.
+    expect(statsFor([0, 0, 1, 3]).sentThisWeek).toBe(2);
+  });
+
+  it("counts weeks in a row, including this one", () => {
+    expect(statsFor([0, 3, 10, 17]).streakWeeks).toBe(4);
+  });
+
+  it("keeps the streak alive while this week is still empty", () => {
+    expect(statsFor([3, 10]).streakWeeks).toBe(2);
+  });
+
+  it("stops at the first empty week", () => {
+    expect(statsFor([0, 3, 17]).streakWeeks).toBe(2);
+  });
+
+  it("is zero when nothing was sent this week or last", () => {
+    expect(statsFor([17]).streakWeeks).toBe(0);
+    expect(statsFor([]).streakWeeks).toBe(0);
+  });
+
+  it("counts streaks longer than the eight weeks charted", () => {
+    const days = Array.from({ length: 12 }, (_, i) => i * 7);
+    expect(statsFor(days).streakWeeks).toBe(12);
+  });
+});
+
 describe("percent", () => {
   it("rounds to a whole percentage", () => {
     expect(percent(3, 7)).toBe(43);

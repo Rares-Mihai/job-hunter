@@ -15,6 +15,11 @@ _Screenshots use demo data._
   application deadline is.
 - **Application page.** Company, role, link, location, deadline, notes and the
   full text of the posting, plus a history of every stage change.
+- **Import from a link.** Paste the address of a job page and the company,
+  role, location, deadline and posting text are filled in for you.
+- **Weekly goal.** Set how many applications you want to send per week; the
+  board shows this week's progress and how many weeks in a row you kept going.
+- **Demo.** `/demo` shows a sample board without signing in.
 - **Posting analysis.** Claude reads the pasted posting and returns a short
   summary, the level, the required and nice-to-have skills, and the day-to-day
   responsibilities.
@@ -139,6 +144,11 @@ A few decisions worth knowing about:
   and filters on it. `src/lib/ownership.db.test.ts` checks against a real
   database that a second user can neither read nor change the first one's
   data.
+- **The link importer only talks to the public internet.** A server that
+  fetches addresses typed by users could be pointed at its own private
+  network. `src/lib/posting-import.ts` checks the address before connecting,
+  connects to exactly the address it checked, and checks again after every
+  redirect.
 - **Only the CV's text is stored,** never the PDF file.
 - **AI answers are structured, not free text.** Each request names a schema
   (`src/lib/ai/schemas.ts`) and the API returns JSON matching it, which is
@@ -150,7 +160,23 @@ A few decisions worth knowing about:
 - **AI results are cleared when their input changes.** Editing the posting
   drops its analysis and match; saving a different CV drops all match scores.
 
+## Putting it online
+
+These steps use free plans. They have not been run for this repository yet.
+
+1. **Database.** Create a Postgres database at [Neon](https://neon.tech) and
+   copy its connection string.
+2. **Hosting.** Import the repository at [Vercel](https://vercel.com). It
+   picks up the `vercel-build` script, which creates the database tables and
+   then builds the app.
+3. **Settings.** In the Vercel project, add the variables from `.env.example`:
+   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the address Vercel
+   gives the site), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and, for the AI
+   features, `ANTHROPIC_API_KEY`.
+4. **Sign-in.** Create a second GitHub OAuth app for the deployed address,
+   with the callback URL `https://YOUR-ADDRESS/api/auth/callback/github`.
+
 ## Not built yet
 
-- Deployment to a public address.
 - Reading scanned (image-only) CVs.
+- Sites that show a posting only after login cannot be imported from a link.

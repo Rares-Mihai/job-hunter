@@ -10,6 +10,8 @@ import {
   deleteApplication,
   getApplication,
   getCv,
+  MAX_WEEKLY_TARGET,
+  saveWeeklyTarget,
   moveApplication,
   saveAnalysis,
   saveCv,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/applications";
 import { getAuth, isSignInConfigured } from "@/lib/auth";
 import { cleanFileName, MAX_CV_PDF_BYTES, readCvPdf } from "@/lib/cv-pdf";
+import { importPosting } from "@/lib/posting-import";
 import { requireUser } from "@/lib/session";
 import { isStatus } from "@/lib/status";
 import {
@@ -268,4 +271,40 @@ export async function signOutAction(): Promise<void> {
     await getAuth().api.signOut({ headers: await headers() });
   }
   redirect("/sign-in");
+}
+
+export async function saveWeeklyTargetAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const target = Number(formData.get("weeklyTarget"));
+  if (!Number.isInteger(target) || target < 1 || target > MAX_WEEKLY_TARGET) {
+    return {
+      ok: false,
+      message: `Enter a whole number from 1 to ${MAX_WEEKLY_TARGET}.`,
+    };
+  }
+  await saveWeeklyTarget(user.id, target);
+  refresh();
+  return { ok: true, message: "Saved" };
+}
+
+/**
+ * Downloads a job page and returns what was found on it, to fill in the
+ * "Add application" form. Nothing is saved until the user submits that form.
+ */
+export async function importPostingAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireUser();
+  const link = formData.get("link");
+  const result = await importPosting(typeof link === "string" ? link : "");
+  if (!result.ok) return { ok: false, message: result.message };
+  return {
+    ok: true,
+    message: "Imported. Check the fields below, then add the application.",
+    values: { ...result.posting, url: String(link).trim() },
+  };
 }

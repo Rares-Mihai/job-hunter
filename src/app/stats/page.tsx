@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { listAllStatusChanges, listApplications } from "@/lib/applications";
+import { GoalForm } from "@/components/GoalForm";
+import {
+  getWeeklyTarget,
+  listAllStatusChanges,
+  listApplications,
+  MAX_WEEKLY_TARGET,
+} from "@/lib/applications";
 import { parseDay } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
 import { computeStats, percent, type Stats } from "@/lib/stats";
@@ -24,9 +30,10 @@ export default function StatsPage() {
 
 async function StatsData() {
   const user = await requireUser();
-  const [applications, changes] = await Promise.all([
+  const [applications, changes, target] = await Promise.all([
     listApplications(user.id),
     listAllStatusChanges(user.id),
+    getWeeklyTarget(user.id),
   ]);
 
   if (applications.length === 0) {
@@ -53,6 +60,18 @@ async function StatsData() {
         <WeeklyChart weekly={stats.weekly} />
         <StageChart stats={stats} />
       </div>
+      <section aria-labelledby="goal-heading">
+        <h2 id="goal-heading" className="text-2xl font-bold">
+          Weekly goal
+        </h2>
+        <p className="mt-1 mb-4 max-w-[60ch] text-ink-soft">
+          {stats.sentThisWeek} sent so far this week
+          {stats.streakWeeks >= 2
+            ? `, and ${stats.streakWeeks} weeks in a row with at least one.`
+            : "."}
+        </p>
+        <GoalForm target={target} max={MAX_WEEKLY_TARGET} />
+      </section>
     </div>
   );
 }

@@ -2,7 +2,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Board, type BoardCard } from "@/components/Board";
 import { FreshOnNavigation } from "@/components/FreshOnNavigation";
-import { listApplications } from "@/lib/applications";
+import { WeekGoal } from "@/components/WeekGoal";
+import {
+  getWeeklyTarget,
+  listAllStatusChanges,
+  listApplications,
+} from "@/lib/applications";
+import { computeStats } from "@/lib/stats";
 import { describeDeadline } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
 
@@ -37,6 +43,11 @@ async function BoardData() {
   }
 
   const now = new Date();
+  const [changes, target] = await Promise.all([
+    listAllStatusChanges(user.id),
+    getWeeklyTarget(user.id),
+  ]);
+  const stats = computeStats(applications, changes, now);
   const cards: BoardCard[] = applications.map((application) => ({
     id: application.id,
     company: application.company,
@@ -53,8 +64,15 @@ async function BoardData() {
   }));
 
   return (
-    <FreshOnNavigation>
-      <Board cards={cards} />
-    </FreshOnNavigation>
+    <>
+      <WeekGoal
+        sent={stats.sentThisWeek}
+        target={target}
+        streakWeeks={stats.streakWeeks}
+      />
+      <FreshOnNavigation>
+        <Board cards={cards} />
+      </FreshOnNavigation>
+    </>
   );
 }

@@ -33,6 +33,14 @@ export type Stats = {
   reachedInterview: number;
   /** Applications sent per week, oldest first. */
   weekly: WeekCount[];
+  /** Applications sent since Monday. */
+  sentThisWeek: number;
+  /**
+   * Weeks in a row with at least one application sent. A week that has only
+   * just started does not break the streak: it counts from last week until
+   * something is sent this week.
+   */
+  streakWeeks: number;
 };
 
 const WEEKS_SHOWN = 8;
@@ -62,6 +70,7 @@ export function computeStats(
     weekly.push({ weekStart, count: 0 });
   }
 
+  const sentWeeks = new Set<string>();
   let sent = 0;
   let heardBack = 0;
   let reachedInterview = 0;
@@ -96,11 +105,22 @@ export function computeStats(
         null,
       );
     const week = toDayString(startOfWeek(sentAt ?? application.createdAt));
+    sentWeeks.add(week);
     const index = weekIndex.get(week);
     if (index !== undefined) weekly[index].count += 1;
   }
 
+  const thisWeekKey = toDayString(thisWeek);
+  let streakWeeks = 0;
+  let cursor = sentWeeks.has(thisWeekKey) ? thisWeek : addDays(thisWeek, -7);
+  while (sentWeeks.has(toDayString(cursor))) {
+    streakWeeks += 1;
+    cursor = addDays(cursor, -7);
+  }
+
   return {
+    sentThisWeek: weekly[weekly.length - 1].count,
+    streakWeeks,
     total: applications.length,
     byStatus,
     sent,
