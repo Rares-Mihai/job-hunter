@@ -4,9 +4,14 @@ A job application tracker with an AI assistant. Keep every application on one
 board, paste a job posting to get its requirements pulled out, and compare the
 posting with your CV to see what you already cover and what is missing.
 
-![The board, with one column per stage](docs/screenshots/board.png)
+![A 27-second walkthrough: moving a card to Offer, the AI features on one application, and the stats page](docs/demo.gif)
 
-_Screenshots use demo data._
+_A 27-second walkthrough ([sharper version as a video](docs/demo.mp4)). It was
+recorded with invented companies and a stand-in for the AI, so the AI text in
+it is placeholder content, not real output. The screenshots below use demo
+data too._
+
+![The board, with one column per stage](docs/screenshots/board.png)
 
 ## What it does
 
@@ -20,6 +25,10 @@ _Screenshots use demo data._
 - **Weekly goal.** Set how many applications you want to send per week; the
   board shows this week's progress and how many weeks in a row you kept going.
 - **Demo.** `/demo` shows a sample board without signing in.
+- **Keyboard friendly.** Every card has a Move button: space picks the card
+  up, the arrow keys choose the stage, space drops it.
+- **Deadline reminders.** Optionally, one email a day listing wishlist jobs
+  that close within three days.
 - **Find.** A search box narrows the board by company, role or place.
 - **Posting analysis.** Claude reads the pasted posting and returns a short
   summary, the level, the required and nice-to-have skills, and the day-to-day
@@ -28,7 +37,7 @@ _Screenshots use demo data._
   from 0 to 100 and lists the skills your CV shows, the ones it is missing,
   what to emphasize and how to improve the application.
 - **Cover letter draft.** A first draft written only from what your CV says,
-  for you to edit.
+  shown as it is being written, for you to edit.
 - **Interview prep.** Likely questions for the job, each with a pointer to
   what in your CV you can use.
 - **Accounts.** Sign in with GitHub. Each person gets a private board; nobody
@@ -186,8 +195,18 @@ These steps use free plans. They have not been run for this repository yet.
 4. **Sign-in.** Create a second GitHub OAuth app for the deployed address,
    with the callback URL `https://YOUR-ADDRESS/api/auth/callback/github`.
 
+### Email reminders (optional)
+
+1. Create an account at [Resend](https://resend.com), verify a sending
+   address, and create an API key.
+2. Set `RESEND_API_KEY`, `REMINDER_FROM_EMAIL` and `CRON_SECRET` (any long
+   random text) in the host's settings.
+3. `vercel.json` already asks Vercel to call `/api/cron/reminders` once a day
+   and to send the secret with it.
+
+People only get reminders after switching them on from their Account page.
+
 ## Not built yet
 
-- Email reminders before deadlines.
 - Reading scanned (image-only) CVs.
 - Sites that show a posting only after login cannot be imported from a link.

@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import {
   AiError,
   analyzeJob,
-  draftCoverLetter,
   isAiConfigured,
   matchCv,
   prepareInterview,
@@ -20,7 +19,6 @@ import {
   deleteUserAndData,
   getCv,
   MAX_WEEKLY_TARGET,
-  saveCoverLetter,
   saveInterviewPrep,
   saveWeeklyTarget,
   moveApplication,
@@ -32,6 +30,7 @@ import {
 import { getAuth, isSignInConfigured } from "@/lib/auth";
 import { cleanFileName, MAX_CV_PDF_BYTES, readCvPdf } from "@/lib/cv-pdf";
 import { importPosting } from "@/lib/posting-import";
+import { setRemindersEnabled } from "@/lib/reminders";
 import { requireUser } from "@/lib/session";
 import { isStatus } from "@/lib/status";
 import {
@@ -320,7 +319,7 @@ export async function importPostingAction(
   };
 }
 
-/** Shared by the two AI features that need the CV, the posting and a free request. */
+/** For AI features that need the CV, the posting and a free request. */
 async function withCvAndPosting(
   id: string,
   run: (context: {
@@ -364,14 +363,6 @@ async function withCvAndPosting(
   return { ok: true };
 }
 
-export async function draftCoverLetterAction(
-  id: string,
-): Promise<ActionResult> {
-  return withCvAndPosting(id, async ({ userId, ...context }) => {
-    await saveCoverLetter(userId, id, await draftCoverLetter(context));
-  });
-}
-
 export async function prepareInterviewAction(
   id: string,
 ): Promise<ActionResult> {
@@ -386,4 +377,14 @@ export async function deleteAccountAction(): Promise<void> {
   // Removing the user also removes their sessions, so they are signed out.
   await deleteUserAndData(user.id);
   redirect("/sign-in");
+}
+
+export async function setRemindersAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  await setRemindersEnabled(user.id, formData.get("enabled") === "on");
+  refresh();
+  return { ok: true, message: "Saved" };
 }

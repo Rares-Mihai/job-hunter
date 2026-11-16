@@ -73,6 +73,7 @@ export function buildCoverLetterPrompt(input: ApplicationContext): Prompt {
       "Write three or four short paragraphs, 180 to 260 words in total, in the first person, in a plain and specific voice. No clichés such as 'I am writing to express my interest' or 'I am passionate about'.",
       "Connect two or three concrete things from the CV to what the posting asks for.",
       "Write in the language of the posting.",
+      "Reply with the letter body only, as plain text with a blank line between paragraphs: no greeting line, no sign-off, no placeholders in brackets, no commentary before or after.",
     ].join("\n"),
     user: `${contextBlock(input)}\n\nDraft the cover letter body for this application.`,
   };

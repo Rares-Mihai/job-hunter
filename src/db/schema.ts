@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   index,
   integer,
@@ -38,6 +39,9 @@ export const applications = pgTable(
     analysis: jsonb("analysis").$type<JobAnalysis>(),
     match: jsonb("match").$type<CvMatch>(),
     coverLetter: text("cover_letter"),
+    // The deadline a reminder email was already sent for, so that the same
+    // deadline is never announced twice.
+    remindedDeadline: date("reminded_deadline", { mode: "string" }),
     interviewPrep: jsonb("interview_prep").$type<InterviewPrep>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -101,6 +105,14 @@ export const goals = pgTable("goals", {
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
   weeklyTarget: integer("weekly_target").notNull(),
+});
+
+// Who asked to get an email shortly before an application deadline.
+export const reminderSettings = pgTable("reminder_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
 });
 
 export type Application = typeof applications.$inferSelect;

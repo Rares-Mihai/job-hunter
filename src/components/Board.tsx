@@ -3,6 +3,7 @@
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   MouseSensor,
   TouchSensor,
   useDraggable,
@@ -11,9 +12,17 @@ import {
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useId, useOptimistic, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { moveApplicationAction } from "@/app/actions";
 import type { DeadlineInfo } from "@/lib/dates";
 import { isStatus, STATUS_LABELS, STATUSES, type Status } from "@/lib/status";
@@ -44,6 +53,32 @@ const EMPTY_HINT: Record<Status, string> = {
   rejected: "Drag a card here if it does not work out.",
 };
 
+/**
+ * Keyboard moves go a whole column at a time: with a card picked up, the
+ * left and right arrow keys carry it to the neighbouring stage.
+ */
+const moveByColumn: KeyboardCoordinateGetter = (
+  event,
+  { currentCoordinates, context },
+) => {
+  const step =
+    event.code === "ArrowRight" ? 1 : event.code === "ArrowLeft" ? -1 : 0;
+  if (step === 0) return undefined;
+  event.preventDefault();
+
+  const columns = STATUSES.map((status) => context.droppableRects.get(status));
+  const centre = currentCoordinates.x + (context.collisionRect?.width ?? 0) / 2;
+  const current = columns.findIndex(
+    (rect) => rect && centre >= rect.left && centre < rect.right,
+  );
+  const target = columns[Math.max(0, current) + step];
+  if (!target) return undefined;
+  return { x: target.left + 8, y: target.top + 8 };
+};
+
+const KEYBOARD_INSTRUCTIONS =
+  "To move this application to another stage, press space, use the left and right arrow keys to choose the stage, then press space again. Press escape to cancel.";
+
 export function Board({
   cards,
   demo = false,
@@ -65,6 +100,9 @@ export function Board({
   const [, startTransition] = useTransition();
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // After a keyboard move the card is drawn again in its new column, which
+  // would drop keyboard focus. This remembers which card to give it back to.
+  const [refocusId, setRefocusId] = useState<string | null>(null);
   // Changes on every move into Offer, which replays the celebration.
   const [celebration, setCelebration] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -77,10 +115,26 @@ export function Board({
     useSensor(TouchSensor, {
       activationConstraint: { delay: 200, tolerance: 8 },
     }),
+    // Starts only from a card's "Move" button, so Enter on the card's link
+    // still opens it.
+    useSensor(KeyboardSensor, {
+      coordinateGetter: moveByColumn,
+      keyboardCodes: {
+        start: ["Space", "Enter"],
+        cancel: ["Escape"],
+        end: ["Space", "Enter"],
+      },
+    }),
   );
+
+  const companyOf = (id: string | number) =>
+    shownCards.find((card) => card.id === String(id))?.company ?? "card";
+  const stageOf = (id: string | number | undefined) =>
+    isStatus(id) ? STATUS_LABELS[id] : null;
 
   function handleDragStart(event: DragStartEvent) {
     setDraggedId(String(event.active.id));
+    setRefocusId(null);
     setError(null);
   }
 
@@ -88,6 +142,7 @@ export function Board({
     setDraggedId(null);
     const target = event.over?.id;
     const id = String(event.active.id);
+    if (event.activatorEvent instanceof KeyboardEvent) setRefocusId(id);
     if (!isStatus(target)) return;
 
     const card = shownCards.find((c) => c.id === id);
@@ -128,6 +183,22 @@ export function Board({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDraggedId(null)}
+      accessibility={{
+        screenReaderInstructions: { draggable: KEYBOARD_INSTRUCTIONS },
+        announcements: {
+          onDragStart: ({ active }) => `Picked up ${companyOf(active.id)}.`,
+          onDragOver: ({ active, over }) =>
+            stageOf(over?.id)
+              ? `${companyOf(active.id)} is over ${stageOf(over?.id)}.`
+              : undefined,
+          onDragEnd: ({ active, over }) =>
+            stageOf(over?.id)
+              ? `${companyOf(active.id)} moved to ${stageOf(over?.id)}.`
+              : `${companyOf(active.id)} was put back.`,
+          onDragCancel: ({ active }) =>
+            `Move cancelled. ${companyOf(active.id)} was put back.`,
+        },
+      }}
     >
       {error && (
         <p role="alert" className="mb-4 font-medium text-danger">
@@ -163,6 +234,7 @@ export function Board({
               filtering={words.length > 0}
               draggedId={draggedId}
               linked={!demo}
+              refocusId={refocusId}
             />
           ))}
         </div>
@@ -184,7 +256,9 @@ function Column({
   draggedId,
   linked,
   filtering,
+  refocusId,
 }: {
+  refocusId: string | null;
   status: Status;
   cards: BoardCard[];
   filtering: boolean;
@@ -230,6 +304,7 @@ function Column({
             card={card}
             hidden={card.id === draggedId}
             linked={linked}
+            takeFocus={card.id === refocusId}
           />
         ))}
       </div>
@@ -241,24 +316,45 @@ function DraggableCard({
   card,
   hidden,
   linked,
+  takeFocus,
 }: {
   card: BoardCard;
   hidden: boolean;
   linked: boolean;
+  takeFocus: boolean;
 }) {
-  // Only the pointer listeners are attached. Keyboard and screen-reader users
-  // change the stage with the "Stage" field on the application page instead.
-  const { setNodeRef, listeners } = useDraggable({ id: card.id });
+  const { setNodeRef, setActivatorNodeRef, listeners, attributes } =
+    useDraggable({ id: card.id });
+  const moveButton = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (takeFocus) moveButton.current?.focus();
+  }, [takeFocus]);
 
   return (
+    // Mouse and touch can drag the whole card. Keyboard dragging starts only
+    // from the "Move" button below, which the keyboard sensor treats as the
+    // card's handle.
     <div
       ref={setNodeRef}
       {...listeners}
-      className={`cursor-grab touch-manipulation select-none ${
+      className={`group/card relative cursor-grab touch-manipulation select-none ${
         hidden ? "opacity-30" : ""
       }`}
     >
       <CardBody card={card} asLink={linked} />
+      <button
+        ref={(node) => {
+          moveButton.current = node;
+          setActivatorNodeRef(node);
+        }}
+        type="button"
+        {...attributes}
+        aria-label={`Move ${card.company}`}
+        className="absolute top-1.5 right-1.5 z-10 rounded border border-line bg-surface px-1.5 py-0.5 text-xs font-semibold opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100"
+      >
+        Move
+      </button>
     </div>
   );
 }

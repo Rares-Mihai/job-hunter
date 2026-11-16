@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   analyzeJobAction,
-  draftCoverLetterAction,
   matchCvAction,
   prepareInterviewAction,
   type ActionResult,
@@ -49,6 +49,53 @@ export function AiPanel({
   const [error, setError] = useState<{ task: Task; message: string } | null>(
     null,
   );
+
+  const router = useRouter();
+  // The cover letter while it is still being written.
+  const [liveLetter, setLiveLetter] = useState<string | null>(null);
+
+  /** Asks for a cover letter and shows the text as it arrives. */
+  function writeLetter() {
+    setRunning("letter");
+    setError(null);
+    setLiveLetter("");
+    startTransition(async () => {
+      try {
+        const response = await fetch(
+          `/api/applications/${applicationId}/cover-letter`,
+          { method: "POST" },
+        );
+        if (!response.ok || !response.body) {
+          const problem = await response.json().catch(() => null);
+          throw new Error(
+            problem?.message ?? "The draft could not be written. Try again.",
+          );
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let text = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+          setLiveLetter(text);
+        }
+        // Load the saved letter from the server, then drop the live copy.
+        router.refresh();
+      } catch (problem) {
+        setError({
+          task: "letter",
+          message:
+            problem instanceof Error && problem.message !== "network error"
+              ? problem.message
+              : "The connection broke while the draft was being written. Try again.",
+        });
+      } finally {
+        setLiveLetter(null);
+        setRunning(null);
+      }
+    });
+  }
 
   function run(task: Task, action: (id: string) => Promise<ActionResult>) {
     setRunning(task);
@@ -165,19 +212,23 @@ export function AiPanel({
           <h2 id="letter-heading" className="text-2xl font-bold">
             Cover letter draft
           </h2>
-          {!coverLetter && (
+          {!coverLetter && liveLetter === null && (
             <p className="mt-3 max-w-[55ch] text-ink-soft">
               A first draft built only from what your CV says. Edit it before
               you send it.
             </p>
           )}
-          {coverLetter && <CoverLetter text={coverLetter} />}
+          {liveLetter !== null ? (
+            <CoverLetter text={liveLetter} writing />
+          ) : (
+            coverLetter && <CoverLetter text={coverLetter} />
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               className={coverLetter ? "btn btn-quiet" : "btn btn-primary"}
               disabled={pending}
-              onClick={() => run("letter", draftCoverLetterAction)}
+              onClick={writeLetter}
             >
               {running === "letter"
                 ? "Writing the draft…"
@@ -241,7 +292,13 @@ export function AiPanel({
   );
 }
 
-function CoverLetter({ text }: { text: string }) {
+function CoverLetter({
+  text,
+  writing = false,
+}: {
+  text: string;
+  writing?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -255,11 +312,19 @@ function CoverLetter({ text }: { text: string }) {
 
   return (
     <div className="mt-3">
-      <div className="max-w-[60ch] rounded-md border border-line bg-surface px-4 py-3 whitespace-pre-wrap">
+      <div
+        aria-busy={writing}
+        className="min-h-24 max-w-[60ch] rounded-md border border-line bg-surface px-4 py-3 whitespace-pre-wrap"
+      >
         {text}
       </div>
       <div className="mt-2 flex items-center gap-3">
-        <button type="button" className="btn btn-quiet" onClick={copy}>
+        <button
+          type="button"
+          className="btn btn-quiet"
+          disabled={writing}
+          onClick={copy}
+        >
           Copy text
         </button>
         <p aria-live="polite" className="font-medium">

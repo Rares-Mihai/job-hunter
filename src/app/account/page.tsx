@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { DeleteAccount } from "@/components/DeleteAccount";
 import { FreshOnNavigation } from "@/components/FreshOnNavigation";
+import { ReminderToggle } from "@/components/ReminderToggle";
+import { areRemindersConfigured, getRemindersEnabled } from "@/lib/reminders";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Account" };
@@ -21,11 +23,23 @@ export default function AccountPage() {
 
 async function Account() {
   const user = await requireUser();
+  const remindersOn = await getRemindersEnabled(user.id);
   return (
     <FreshOnNavigation>
       <p className="text-lg">
         Signed in with GitHub as <strong>{user.name}</strong>.
       </p>
+      <h2 className="mt-10 text-2xl font-bold">Deadline reminders</h2>
+      <div className="mt-3">
+        {areRemindersConfigured() ? (
+          <ReminderToggle enabled={remindersOn} email={user.email} />
+        ) : (
+          <p className="max-w-[60ch] text-ink-soft">
+            Email reminders are not set up on this copy of the app. The README
+            explains how to switch them on.
+          </p>
+        )}
+      </div>
       <h2 className="mt-10 text-2xl font-bold">Delete account</h2>
       <p className="mt-2 mb-4 max-w-[60ch] text-ink-soft">
         This removes your account and everything in it: applications, notes, AI
