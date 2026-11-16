@@ -1,8 +1,8 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   applications,
-  profile,
+  cvs,
   statusChanges,
   type Application,
   type StatusChange,
@@ -11,13 +11,22 @@ import type { CvMatch, JobAnalysis } from "./ai/schemas";
 import type { Status } from "./status";
 import { isUuid, type ApplicationInput } from "./validation";
 
-// All database reads and writes for the app live in this file. When user
-// accounts are added, this is the one place that needs to filter by owner.
+// All database reads and writes for applications and CVs live in this file.
+//
+// Every function takes the id of the signed-in user first and only ever
+// touches that user's rows. Nothing outside this file queries these tables,
+// so this is the one place to check that users cannot see each other's data.
 
-export async function listApplications(): Promise<Application[]> {
+/** Matches one application, but only if it belongs to this user. */
+function ownedBy(userId: string, id: string) {
+  return and(eq(applications.id, id), eq(applications.userId, userId));
+}
+
+export async function listApplications(userId: string): Promise<Application[]> {
   return getDb()
     .select()
     .from(applications)
+    .where(eq(applications.userId, userId))
     .orderBy(
       // Soonest deadline first; applications without one go last.
       sql`${applications.deadline} asc nulls last`,
@@ -25,36 +34,52 @@ export async function listApplications(): Promise<Application[]> {
     );
 }
 
-export async function getApplication(id: string): Promise<Application | null> {
+export async function getApplication(
+  userId: string,
+  id: string,
+): Promise<Application | null> {
   if (!isUuid(id)) return null;
   const rows = await getDb()
     .select()
     .from(applications)
-    .where(eq(applications.id, id))
+    .where(ownedBy(userId, id))
     .limit(1);
   return rows[0] ?? null;
 }
 
-export async function listStatusHistory(id: string): Promise<StatusChange[]> {
+export async function listStatusHistory(
+  userId: string,
+  id: string,
+): Promise<StatusChange[]> {
   if (!isUuid(id)) return [];
-  return getDb()
-    .select()
+  const rows = await getDb()
+    .select({ change: statusChanges })
     .from(statusChanges)
-    .where(eq(statusChanges.applicationId, id))
+    .innerJoin(applications, eq(statusChanges.applicationId, applications.id))
+    .where(ownedBy(userId, id))
     .orderBy(asc(statusChanges.changedAt));
+  return rows.map((row) => row.change);
 }
 
-export async function listAllStatusChanges(): Promise<StatusChange[]> {
-  return getDb().select().from(statusChanges);
+export async function listAllStatusChanges(
+  userId: string,
+): Promise<StatusChange[]> {
+  const rows = await getDb()
+    .select({ change: statusChanges })
+    .from(statusChanges)
+    .innerJoin(applications, eq(statusChanges.applicationId, applications.id))
+    .where(eq(applications.userId, userId));
+  return rows.map((row) => row.change);
 }
 
 export async function createApplication(
+  userId: string,
   input: ApplicationInput,
 ): Promise<string> {
   return getDb().transaction(async (tx) => {
     const [row] = await tx
       .insert(applications)
-      .values(input)
+      .values({ ...input, userId })
       .returning({ id: applications.id });
     await tx.insert(statusChanges).values({
       applicationId: row.id,
@@ -65,8 +90,9 @@ export async function createApplication(
   });
 }
 
-/** Returns false when the application does not exist. */
+/** Returns false when the user has no such application. */
 export async function updateApplication(
+  userId: string,
   id: string,
   input: ApplicationInput,
 ): Promise<boolean> {
@@ -75,7 +101,7 @@ export async function updateApplication(
     const [current] = await tx
       .select()
       .from(applications)
-      .where(eq(applications.id, id))
+      .where(ownedBy(userId, id))
       .for("update");
     if (!current) return false;
 
@@ -90,7 +116,7 @@ export async function updateApplication(
         ...(postingChanged ? { analysis: null, match: null } : {}),
         updatedAt: new Date(),
       })
-      .where(eq(applications.id, id));
+      .where(ownedBy(userId, id));
 
     if (current.status !== input.status) {
       await tx.insert(statusChanges).values({
@@ -103,8 +129,9 @@ export async function updateApplication(
   });
 }
 
-/** Moves an application to another stage. Returns false if it does not exist. */
+/** Moves an application to another stage. Returns false if the user has no such application. */
 export async function moveApplication(
+  userId: string,
   id: string,
   status: Status,
 ): Promise<boolean> {
@@ -113,7 +140,7 @@ export async function moveApplication(
     const [current] = await tx
       .select({ status: applications.status })
       .from(applications)
-      .where(eq(applications.id, id))
+      .where(ownedBy(userId, id))
       .for("update");
     if (!current) return false;
     if (current.status === status) return true;
@@ -121,7 +148,7 @@ export async function moveApplication(
     await tx
       .update(applications)
       .set({ status, updatedAt: new Date() })
-      .where(eq(applications.id, id));
+      .where(ownedBy(userId, id));
     await tx.insert(statusChanges).values({
       applicationId: id,
       fromStatus: current.status,
@@ -131,58 +158,79 @@ export async function moveApplication(
   });
 }
 
-export async function deleteApplication(id: string): Promise<void> {
+export async function deleteApplication(
+  userId: string,
+  id: string,
+): Promise<void> {
   if (!isUuid(id)) return;
-  await getDb().delete(applications).where(eq(applications.id, id));
+  await getDb().delete(applications).where(ownedBy(userId, id));
 }
 
 export async function saveAnalysis(
+  userId: string,
   id: string,
   analysis: JobAnalysis,
 ): Promise<void> {
+  if (!isUuid(id)) return;
   // A new analysis changes the list of requirements, so an older CV match
   // (which was scored against the previous list) is cleared with it.
   await getDb()
     .update(applications)
     .set({ analysis, match: null, updatedAt: new Date() })
-    .where(eq(applications.id, id));
+    .where(ownedBy(userId, id));
 }
 
-export async function saveMatch(id: string, match: CvMatch): Promise<void> {
+export async function saveMatch(
+  userId: string,
+  id: string,
+  match: CvMatch,
+): Promise<void> {
+  if (!isUuid(id)) return;
   await getDb()
     .update(applications)
     .set({ match, updatedAt: new Date() })
-    .where(eq(applications.id, id));
+    .where(ownedBy(userId, id));
 }
 
-const PROFILE_ID = 1;
+export type SavedCv = {
+  text: string;
+  /** Name of the uploaded PDF the text was read from, if any. */
+  fileName: string | null;
+};
 
-export async function getCv(): Promise<string> {
+const NO_CV: SavedCv = { text: "", fileName: null };
+
+export async function getCv(userId: string): Promise<SavedCv> {
   const rows = await getDb()
-    .select({ cvText: profile.cvText })
-    .from(profile)
-    .where(eq(profile.id, PROFILE_ID))
+    .select({ text: cvs.text, fileName: cvs.fileName })
+    .from(cvs)
+    .where(eq(cvs.userId, userId))
     .limit(1);
-  return rows[0]?.cvText ?? "";
+  return rows[0] ?? NO_CV;
 }
 
-export async function saveCv(cvText: string): Promise<void> {
+export async function saveCv(userId: string, cv: SavedCv): Promise<void> {
   await getDb().transaction(async (tx) => {
     const [current] = await tx
-      .select({ cvText: profile.cvText })
-      .from(profile)
-      .where(eq(profile.id, PROFILE_ID))
+      .select({ text: cvs.text })
+      .from(cvs)
+      .where(eq(cvs.userId, userId))
       .for("update");
-    if (current?.cvText === cvText) return;
 
     await tx
-      .insert(profile)
-      .values({ id: PROFILE_ID, cvText })
+      .insert(cvs)
+      .values({ userId, text: cv.text, fileName: cv.fileName })
       .onConflictDoUpdate({
-        target: profile.id,
-        set: { cvText, updatedAt: new Date() },
+        target: cvs.userId,
+        set: { text: cv.text, fileName: cv.fileName, updatedAt: new Date() },
       });
-    // Earlier match scores were based on the previous CV.
-    await tx.update(applications).set({ match: null });
+
+    // Earlier match scores were based on the previous CV text.
+    if ((current?.text ?? "") !== cv.text) {
+      await tx
+        .update(applications)
+        .set({ match: null })
+        .where(eq(applications.userId, userId));
+    }
   });
 }

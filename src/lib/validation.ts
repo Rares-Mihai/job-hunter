@@ -5,6 +5,11 @@ import { STATUSES } from "./status";
 export const MAX_JOB_DESCRIPTION_CHARS = 30_000;
 export const MAX_CV_CHARS = 30_000;
 
+/** Browsers submit line breaks in a textarea as CRLF; store plain LF. */
+export function normalizeNewlines(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
+}
+
 const optionalText = (max: number, tooLong: string) =>
   z
     .string()
@@ -69,12 +74,20 @@ export const applicationInputSchema = z.object({
   location: optionalText(120, "Keep the location under 120 characters."),
   status: z.enum(STATUSES, "Choose a stage."),
   deadline: optionalDay,
-  notes: z.string().max(10_000, "Keep notes under 10,000 characters."),
+  notes: z
+    .string()
+    .transform(normalizeNewlines)
+    .pipe(z.string().max(10_000, "Keep notes under 10,000 characters.")),
   jobDescription: z
     .string()
-    .max(
-      MAX_JOB_DESCRIPTION_CHARS,
-      "The job posting is too long. Paste only the description, up to 30,000 characters.",
+    .transform(normalizeNewlines)
+    .pipe(
+      z
+        .string()
+        .max(
+          MAX_JOB_DESCRIPTION_CHARS,
+          "The job posting is too long. Paste only the description, up to 30,000 characters.",
+        ),
     ),
 });
 

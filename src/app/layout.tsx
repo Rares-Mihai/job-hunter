@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { NavLinks } from "@/components/NavLinks";
+import { HeaderNav } from "@/components/HeaderNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,11 +26,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               Job Hunter
             </Link>
             <Suspense>
-              <NavLinks />
+              <HeaderNav />
             </Suspense>
-            <Link href="/applications/new" className="btn btn-primary ml-auto">
-              Add application
-            </Link>
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1400px] min-w-0 flex-1 px-5 py-8">

@@ -95,6 +95,18 @@ describe("parseApplicationForm", () => {
   });
 });
 
+describe("line breaks", () => {
+  it("are stored as plain LF, however the browser sent them", () => {
+    const result = parseApplicationForm(
+      form({ ...VALID, notes: "a\r\nb\rc", jobDescription: "x\r\ny" }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.notes).toBe("a\nb\nc");
+    expect(result.data.jobDescription).toBe("x\ny");
+  });
+});
+
 describe("isUuid", () => {
   it("recognises database ids", () => {
     expect(isUuid("3b67d1e0-7ca4-4a1d-b36d-1efdb1f81012")).toBe(true);

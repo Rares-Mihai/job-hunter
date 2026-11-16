@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { updateApplicationAction } from "@/app/actions";
 import { AiPanel } from "@/components/AiPanel";
@@ -11,6 +10,7 @@ import { FreshOnNavigation } from "@/components/FreshOnNavigation";
 import { isAiConfigured } from "@/lib/ai/client";
 import { getApplication, getCv, listStatusHistory } from "@/lib/applications";
 import { formatDay } from "@/lib/dates";
+import { requireUser } from "@/lib/session";
 import { STATUS_LABELS } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Application" };
@@ -30,12 +30,15 @@ async function ApplicationDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await connection();
+  const user = await requireUser();
   const { id } = await params;
-  const application = await getApplication(id);
+  const application = await getApplication(user.id, id);
   if (!application) notFound();
 
-  const [history, cv] = await Promise.all([listStatusHistory(id), getCv()]);
+  const [history, cv] = await Promise.all([
+    listStatusHistory(user.id, id),
+    getCv(user.id),
+  ]);
 
   return (
     <FreshOnNavigation>
@@ -92,7 +95,7 @@ async function ApplicationDetail({
             applicationId={application.id}
             aiConfigured={isAiConfigured()}
             hasPosting={application.jobDescription.trim() !== ""}
-            hasCv={cv.trim() !== ""}
+            hasCv={cv.text.trim() !== ""}
             analysis={application.analysis}
             match={application.match}
           />

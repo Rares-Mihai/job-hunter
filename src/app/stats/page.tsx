@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { listAllStatusChanges, listApplications } from "@/lib/applications";
 import { parseDay } from "@/lib/dates";
+import { requireUser } from "@/lib/session";
 import { computeStats, percent, type Stats } from "@/lib/stats";
 import { STATUS_LABELS, STATUSES } from "@/lib/status";
 
@@ -23,10 +23,10 @@ export default function StatsPage() {
 }
 
 async function StatsData() {
-  await connection();
+  const user = await requireUser();
   const [applications, changes] = await Promise.all([
-    listApplications(),
-    listAllStatusChanges(),
+    listApplications(user.id),
+    listAllStatusChanges(user.id),
   ]);
 
   if (applications.length === 0) {

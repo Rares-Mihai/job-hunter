@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { Board, type BoardCard } from "@/components/Board";
 import { FreshOnNavigation } from "@/components/FreshOnNavigation";
 import { listApplications } from "@/lib/applications";
 import { describeDeadline } from "@/lib/dates";
+import { requireUser } from "@/lib/session";
 
 export default function BoardPage() {
   return (
@@ -18,9 +18,8 @@ export default function BoardPage() {
 }
 
 async function BoardData() {
-  // Always render with fresh data, never at build time.
-  await connection();
-  const applications = await listApplications();
+  const user = await requireUser();
+  const applications = await listApplications(user.id);
 
   if (applications.length === 0) {
     return (

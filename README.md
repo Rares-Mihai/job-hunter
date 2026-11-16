@@ -18,9 +18,11 @@ _Screenshots use demo data._
 - **Posting analysis.** Claude reads the pasted posting and returns a short
   summary, the level, the required and nice-to-have skills, and the day-to-day
   responsibilities.
-- **CV match.** Paste your CV once. For any posting, Claude scores the fit
+- **CV match.** Upload your CV as a PDF once. For any posting, Claude scores the fit
   from 0 to 100 and lists the skills your CV shows, the ones it is missing,
   what to emphasize and how to improve the application.
+- **Accounts.** Sign in with GitHub. Each person gets a private board; nobody
+  can see or change anyone else's applications or CV.
 - **Stats.** Applications sent per week, how many got an answer, how many
   reached an interview, and how many sit in each stage.
 
@@ -33,6 +35,8 @@ _Screenshots use demo data._
 - [Next.js 16](https://nextjs.org) (App Router, Server Components, Server
   Actions) and React 19, in TypeScript
 - PostgreSQL with [Drizzle ORM](https://orm.drizzle.team)
+- [Better Auth](https://better-auth.com) for sign-in with GitHub
+- [unpdf](https://github.com/unjs/unpdf) to read the text out of an uploaded CV
 - [Claude API](https://docs.claude.com) through the official TypeScript SDK,
   using structured outputs so every AI answer arrives as validated JSON
 - Tailwind CSS 4
@@ -56,6 +60,26 @@ npm run db:migrate          # creates the tables
 npm run dev                 # http://localhost:3000
 ```
 
+### Setting up sign-in
+
+Sign-in needs a GitHub "OAuth app", which tells GitHub that this app may ask
+people to sign in. It is free and takes a few minutes:
+
+1. On GitHub, open **Settings**, then **Developer settings**, then
+   **OAuth Apps**, and choose **New OAuth App**.
+2. Fill in:
+   - Homepage URL: `http://localhost:3000`
+   - Authorization callback URL:
+     `http://localhost:3000/api/auth/callback/github`
+3. Create the app, then generate a client secret.
+4. Copy the client ID and the client secret into `.env` as `GITHUB_CLIENT_ID`
+   and `GITHUB_CLIENT_SECRET`.
+5. Put any long random text in `BETTER_AUTH_SECRET` (for example the output
+   of `openssl rand -base64 32`).
+
+When the app is deployed, create a second OAuth app with the deployed address
+in both URLs, and set `BETTER_AUTH_URL` to that address.
+
 ### Turning on the AI features
 
 The board, notes and stats work without any key. Posting analysis and CV match
@@ -69,18 +93,22 @@ need a Claude API key:
 The app uses Claude Haiku by default, the fastest and cheapest model. To use
 another one, set `ANTHROPIC_MODEL` in `.env`.
 
+Because anyone with a GitHub account can sign in, AI requests are limited to
+20 per person per day and 200 per day in total, so the API bill stays small.
+Change the limits with `AI_DAILY_LIMIT_PER_USER` and `AI_DAILY_LIMIT_TOTAL`.
+
 ## Commands
 
-| Command               | What it does                                         |
-| --------------------- | ---------------------------------------------------- |
-| `npm run dev`         | Start the app for development                        |
-| `npm run build`       | Build for production                                 |
-| `npm start`           | Run the production build                             |
-| `npm test`            | Run the unit tests                                   |
-| `npm run lint`        | Check code style                                     |
-| `npm run typecheck`   | Check types                                          |
-| `npm run db:generate` | Create a migration after changing `src/db/schema.ts` |
-| `npm run db:migrate`  | Apply migrations to the database                     |
+| Command               | What it does                                                          |
+| --------------------- | --------------------------------------------------------------------- |
+| `npm run dev`         | Start the app for development                                         |
+| `npm run build`       | Build for production                                                  |
+| `npm start`           | Run the production build                                              |
+| `npm test`            | Run the tests (set `TEST_DATABASE_URL` to include the database tests) |
+| `npm run lint`        | Check code style                                                      |
+| `npm run typecheck`   | Check types                                                           |
+| `npm run db:generate` | Create a migration after changing `src/db/schema.ts`                  |
+| `npm run db:migrate`  | Apply migrations to the database                                      |
 
 ## How the code is organized
 
@@ -90,11 +118,14 @@ src/
     page.tsx            The board
     applications/       Add and edit an application
     stats/  cv/         Stats page, CV page
+    sign-in/            Sign-in page
     actions.ts          Everything the browser can ask the server to change
   components/           Board, forms, AI panel
   db/                   Database schema and connection
   lib/
-    applications.ts     All database reads and writes
+    auth.ts session.ts  Sign-in setup, and "who is signed in?"
+    applications.ts     All database reads and writes, always for one user
+    cv-pdf.ts           Reads the text out of an uploaded CV
     stats.ts            The numbers on the Stats page (pure functions)
     validation.ts       Form validation
     ai/                 Prompts, result schemas and the Claude API call
@@ -103,6 +134,12 @@ drizzle/                SQL migrations
 
 A few decisions worth knowing about:
 
+- **Every query is scoped to the signed-in user.** All data access goes
+  through `src/lib/applications.ts`, where each function takes the user's id
+  and filters on it. `src/lib/ownership.db.test.ts` checks against a real
+  database that a second user can neither read nor change the first one's
+  data.
+- **Only the CV's text is stored,** never the PDF file.
 - **AI answers are structured, not free text.** Each request names a schema
   (`src/lib/ai/schemas.ts`) and the API returns JSON matching it, which is
   validated again before it is stored.
@@ -115,8 +152,5 @@ A few decisions worth knowing about:
 
 ## Not built yet
 
-- **Sign-in.** The app currently has a single shared workspace with no
-  accounts. Do not deploy it to a public address until sign-in is added:
-  anyone with the link could read and change the data and use the API key.
-- Uploading the CV as a PDF (for now, paste the text).
-- Deployment.
+- Deployment to a public address.
+- Reading scanned (image-only) CVs.
