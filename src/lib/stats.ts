@@ -31,6 +31,8 @@ export type Stats = {
   heardBack: number;
   /** Sent applications that reached an interview or an offer at some point. */
   reachedInterview: number;
+  /** Sent applications that reached an offer at some point. */
+  reachedOffer: number;
   /** Applications sent per week, oldest first. */
   weekly: WeekCount[];
   /** Applications sent since Monday. */
@@ -74,6 +76,7 @@ export function computeStats(
   let sent = 0;
   let heardBack = 0;
   let reachedInterview = 0;
+  let reachedOffer = 0;
 
   for (const application of applications) {
     byStatus[application.status] += 1;
@@ -92,6 +95,12 @@ export function computeStats(
           change.toStatus === "interview" || change.toStatus === "offer",
       );
     if (everInterviewed) reachedInterview += 1;
+    if (
+      application.status === "offer" ||
+      history.some((change) => change.toStatus === "offer")
+    ) {
+      reachedOffer += 1;
+    }
 
     // The day it was sent is the first time it left the wishlist. Fall back
     // to the creation date for applications with no recorded history.
@@ -126,6 +135,7 @@ export function computeStats(
     sent,
     heardBack,
     reachedInterview,
+    reachedOffer,
     weekly,
   };
 }

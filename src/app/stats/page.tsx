@@ -59,6 +59,7 @@ async function StatsData() {
       <div className="grid gap-x-14 gap-y-12 lg:grid-cols-2">
         <WeeklyChart weekly={stats.weekly} />
         <StageChart stats={stats} />
+        <Pipeline stats={stats} />
       </div>
       <section aria-labelledby="goal-heading">
         <h2 id="goal-heading" className="text-2xl font-bold">
@@ -194,7 +195,7 @@ function WeeklyChart({ weekly }: { weekly: Stats["weekly"] }) {
               </span>
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute -top-9 left-1/2 z-10 hidden -translate-x-1/2 rounded bg-ink px-2 py-1 text-sm whitespace-nowrap text-white group-hover:block"
+                className="pointer-events-none absolute -top-9 left-1/2 z-10 hidden -translate-x-1/2 rounded bg-ink px-2 py-1 text-sm whitespace-nowrap text-paper group-hover:block"
               >
                 <strong>{week.count}</strong> sent, week of {label}
               </span>
@@ -225,6 +226,70 @@ function WeeklyChart({ weekly }: { weekly: Stats["weekly"] }) {
           );
         })}
       </ol>
+    </section>
+  );
+}
+
+/** How far sent applications got: each step is a share of the one before it. */
+function Pipeline({ stats }: { stats: Stats }) {
+  const steps = [
+    { label: "Sent", count: stats.sent },
+    { label: "Interview", count: stats.reachedInterview },
+    { label: "Offer", count: stats.reachedOffer },
+  ];
+  const max = Math.max(1, stats.sent);
+  const rejections = stats.byStatus.rejected;
+
+  return (
+    <section aria-labelledby="pipeline-heading">
+      <h2 id="pipeline-heading" className="text-2xl font-bold">
+        How far they got
+      </h2>
+      <p className="mt-1 text-ink-soft">
+        Sent applications that reached each step, even if they were turned down
+        later.
+      </p>
+      <ol className="mt-6 flex flex-col gap-3">
+        {steps.map((step, index) => {
+          const previous = index > 0 ? steps[index - 1].count : null;
+          const share = previous ? percent(step.count, previous) : null;
+          return (
+            <li
+              key={step.label}
+              className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3"
+            >
+              <span>{step.label}</span>
+              <span className="flex items-center gap-2 border-l border-line">
+                <span
+                  aria-hidden="true"
+                  className="h-5 rounded-r bg-pen"
+                  style={{ width: `${(step.count / max) * 70}%` }}
+                />
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {step.count}
+                  {share !== null && (
+                    <span className="font-normal text-ink-soft">
+                      {" "}
+                      ({share}% of {steps[index - 1].label.toLowerCase()})
+                    </span>
+                  )}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {rejections > 0 && (
+        <p className="mt-6">
+          <span className="hl hl-none font-medium">
+            {rejections} {rejections === 1 ? "rejection" : "rejections"}{" "}
+            survived
+          </span>{" "}
+          <span className="text-ink-soft">
+            Each one is an application you had the nerve to send.
+          </span>
+        </p>
+      )}
     </section>
   );
 }
@@ -269,7 +334,7 @@ function StageChart({ stats }: { stats: Stats }) {
               </span>
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute -top-7 left-28 z-10 hidden rounded bg-ink px-2 py-1 text-sm whitespace-nowrap text-white group-hover:block"
+                className="pointer-events-none absolute -top-7 left-28 z-10 hidden rounded bg-ink px-2 py-1 text-sm whitespace-nowrap text-paper group-hover:block"
               >
                 <strong>{count}</strong> in {STATUS_LABELS[status]}, {share}% of
                 all

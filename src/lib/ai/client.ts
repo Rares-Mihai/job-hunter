@@ -1,12 +1,21 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
-import { buildAnalysisPrompt, buildMatchPrompt, type Prompt } from "./prompts";
+import {
+  buildAnalysisPrompt,
+  buildCoverLetterPrompt,
+  buildInterviewPrepPrompt,
+  buildMatchPrompt,
+  type Prompt,
+} from "./prompts";
 import {
   clampScore,
+  coverLetterSchema,
   cvMatchSchema,
+  interviewPrepSchema,
   jobAnalysisSchema,
   type CvMatch,
+  type InterviewPrep,
   type JobAnalysis,
 } from "./schemas";
 
@@ -103,4 +112,22 @@ export async function matchCv(input: {
 }): Promise<CvMatch> {
   const match = await askForStructured(buildMatchPrompt(input), cvMatchSchema);
   return { ...match, score: clampScore(match.score) };
+}
+
+type ApplicationContext = Parameters<typeof buildCoverLetterPrompt>[0];
+
+export async function draftCoverLetter(
+  input: ApplicationContext,
+): Promise<string> {
+  const result = await askForStructured(
+    buildCoverLetterPrompt(input),
+    coverLetterSchema,
+  );
+  return result.letter.trim();
+}
+
+export async function prepareInterview(
+  input: ApplicationContext,
+): Promise<InterviewPrep> {
+  return askForStructured(buildInterviewPrepPrompt(input), interviewPrepSchema);
 }

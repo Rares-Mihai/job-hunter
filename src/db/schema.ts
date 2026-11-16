@@ -10,7 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { CvMatch, JobAnalysis } from "../lib/ai/schemas";
+import type { CvMatch, InterviewPrep, JobAnalysis } from "../lib/ai/schemas";
 import { STATUSES } from "../lib/status";
 import { users } from "./auth-schema";
 
@@ -37,6 +37,8 @@ export const applications = pgTable(
     jobDescription: text("job_description").notNull().default(""),
     analysis: jsonb("analysis").$type<JobAnalysis>(),
     match: jsonb("match").$type<CvMatch>(),
+    coverLetter: text("cover_letter"),
+    interviewPrep: jsonb("interview_prep").$type<InterviewPrep>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

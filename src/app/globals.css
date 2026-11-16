@@ -25,11 +25,30 @@
   --color-hl-blue: #a9d8ff;
   --color-hl-none: #dfe3ec;
   --color-danger: #b3261e;
+  --color-link: #2443d0;
 
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display:
     "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif,
     system-ui, sans-serif;
+}
+
+/* Dark mode follows the device setting. Paper becomes a dark desk; the
+   highlighter colours stay bright and always carry dark text. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #111627;
+    --color-surface: #1a2036;
+    --color-ink: #e9ecf5;
+    --color-ink-soft: #a3adc4;
+    --color-line: #333c58;
+    --color-pen: #4a68f0;
+    --color-pen-dark: #6681f5;
+    --color-link: #a9b8ff;
+    --color-hl-none: #c9cfdd;
+    --color-danger: #ff8f88;
+    color-scheme: dark;
+  }
 }
 
 html {
@@ -73,6 +92,8 @@ h3 {
   border-radius: 0.4em 0.15em 0.45em 0.2em;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
+  /* Highlighter is always bright, so the text on it is always dark. */
+  color: #17203d;
 }
 
 .hl-blue {
@@ -116,83 +137,124 @@ h3 {
   }
 }
 
-/* Shared form controls. */
-.field {
-  width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  padding: 0.5rem 0.7rem;
-  font: inherit;
-  color: inherit;
+/* In the components layer, so a utility class on the same element (a width,
+   a colour) can override these defaults. */
+@layer components {
+  /* Shared form controls. */
+  .field {
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    font: inherit;
+    color: inherit;
+  }
+
+  .field:hover {
+    border-color: var(--color-ink-soft);
+  }
+
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+
+  textarea.field {
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    padding: 0.5rem 0.95rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: progress;
+  }
+
+  .btn-primary {
+    background: var(--color-pen);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-pen-dark);
+  }
+
+  .btn-quiet {
+    background: var(--color-surface);
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+
+  .btn-quiet:hover:not(:disabled) {
+    border-color: var(--color-ink-soft);
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--color-danger);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    border-color: var(--color-danger);
+  }
+
+  .link {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .link:hover {
+    color: var(--color-ink);
+  }
 }
 
-.field:hover {
-  border-color: var(--color-ink-soft);
+/* Confetti for a new offer: pieces fall once from the top of the window. */
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.field[aria-invalid="true"] {
-  border-color: var(--color-danger);
+.confetti span {
+  position: absolute;
+  top: -1rem;
+  left: var(--x);
+  width: 0.6rem;
+  height: 1rem;
+  border-radius: 2px;
+  background: var(--hl);
+  opacity: 0;
 }
 
-textarea.field {
-  line-height: 1.5;
-  resize: vertical;
+@media (prefers-reduced-motion: no-preference) {
+  .confetti span {
+    animation: confetti-fall 1.8s ease-in var(--delay) 1 both;
+  }
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  padding: 0.5rem 0.95rem;
-  font-weight: 600;
-  line-height: 1.25;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: progress;
-}
-
-.btn-primary {
-  background: var(--color-pen);
-  color: #fff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-pen-dark);
-}
-
-.btn-quiet {
-  background: var(--color-surface);
-  border-color: var(--color-line);
-  color: var(--color-ink);
-}
-
-.btn-quiet:hover:not(:disabled) {
-  border-color: var(--color-ink-soft);
-}
-
-.btn-danger {
-  background: transparent;
-  color: var(--color-danger);
-}
-
-.btn-danger:hover:not(:disabled) {
-  border-color: var(--color-danger);
-}
-
-.link {
-  color: var(--color-pen);
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-}
-
-.link:hover {
-  color: var(--color-pen-dark);
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotate(var(--turn));
+  }
 }

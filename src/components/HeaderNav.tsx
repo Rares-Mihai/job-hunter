@@ -16,7 +16,9 @@ export async function HeaderNav() {
           Add application
         </Link>
         <form action={signOutAction} className="flex items-center gap-3">
-          <span className="text-sm text-ink-soft">{user.name}</span>
+          <Link href="/account" className="link text-sm">
+            {user.name}
+          </Link>
           <button type="submit" className="btn btn-quiet">
             Sign out
           </button>
