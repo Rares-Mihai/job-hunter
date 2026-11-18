@@ -9,6 +9,23 @@ jobs:
   check:
     name: Lint, type-check, test and build
     runs-on: ubuntu-latest
+    # A throwaway database for the tests that check users cannot reach each
+    # other's data.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jobhunter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/jobhunter_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,6 +35,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: Create the test database tables
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
       - run: npm test
-      # The build needs no database: every page reads its data at request time.
+      # The build needs no database and no settings: every page reads its
+      # data at request time.
       - run: npm run build

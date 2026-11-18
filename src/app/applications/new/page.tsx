@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { createApplicationAction } from "@/app/actions";
+import { requireUser } from "@/lib/session";
 import { FreshOnNavigation } from "@/components/FreshOnNavigation";
 import {
   ApplicationForm,
@@ -17,15 +19,25 @@ export default function NewApplicationPage() {
         fill in the rest later.
       </p>
       <div className="mt-8">
-        <FreshOnNavigation>
-          <ApplicationForm
-            action={createApplicationAction}
-            initial={EMPTY_APPLICATION}
-            submitLabel="Add application"
-            pendingLabel="Adding…"
-          />
-        </FreshOnNavigation>
+        <Suspense fallback={<p className="text-ink-soft">Loading…</p>}>
+          <NewApplicationForm />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+async function NewApplicationForm() {
+  // Only signed-in users get the form; everyone else goes to the sign-in page.
+  await requireUser();
+  return (
+    <FreshOnNavigation>
+      <ApplicationForm
+        action={createApplicationAction}
+        initial={EMPTY_APPLICATION}
+        submitLabel="Add application"
+        pendingLabel="Adding…"
+      />
+    </FreshOnNavigation>
   );
 }
