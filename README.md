@@ -20,14 +20,20 @@ _Screenshots use demo data._
 - **Weekly goal.** Set how many applications you want to send per week; the
   board shows this week's progress and how many weeks in a row you kept going.
 - **Demo.** `/demo` shows a sample board without signing in.
+- **Find.** A search box narrows the board by company, role or place.
 - **Posting analysis.** Claude reads the pasted posting and returns a short
   summary, the level, the required and nice-to-have skills, and the day-to-day
   responsibilities.
 - **CV match.** Upload your CV as a PDF once. For any posting, Claude scores the fit
   from 0 to 100 and lists the skills your CV shows, the ones it is missing,
   what to emphasize and how to improve the application.
+- **Cover letter draft.** A first draft written only from what your CV says,
+  for you to edit.
+- **Interview prep.** Likely questions for the job, each with a pointer to
+  what in your CV you can use.
 - **Accounts.** Sign in with GitHub. Each person gets a private board; nobody
-  can see or change anyone else's applications or CV.
+  can see or change anyone else's applications or CV. You can delete your
+  account and all its data from the Account page.
 - **Stats.** Applications sent per week, how many got an answer, how many
   reached an interview, and how many sit in each stage.
 
@@ -104,16 +110,17 @@ Change the limits with `AI_DAILY_LIMIT_PER_USER` and `AI_DAILY_LIMIT_TOTAL`.
 
 ## Commands
 
-| Command               | What it does                                                          |
-| --------------------- | --------------------------------------------------------------------- |
-| `npm run dev`         | Start the app for development                                         |
-| `npm run build`       | Build for production                                                  |
-| `npm start`           | Run the production build                                              |
-| `npm test`            | Run the tests (set `TEST_DATABASE_URL` to include the database tests) |
-| `npm run lint`        | Check code style                                                      |
-| `npm run typecheck`   | Check types                                                           |
-| `npm run db:generate` | Create a migration after changing `src/db/schema.ts`                  |
-| `npm run db:migrate`  | Apply migrations to the database                                      |
+| Command               | What it does                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `npm run dev`         | Start the app for development                                                            |
+| `npm run build`       | Build for production                                                                     |
+| `npm start`           | Run the production build                                                                 |
+| `npm test`            | Run the tests (set `TEST_DATABASE_URL` to include the database tests)                    |
+| `npm run test:e2e`    | Run the browser tests (needs `E2E_DATABASE_URL` and a build; see `playwright.config.ts`) |
+| `npm run lint`        | Check code style                                                                         |
+| `npm run typecheck`   | Check types                                                                              |
+| `npm run db:generate` | Create a migration after changing `src/db/schema.ts`                                     |
+| `npm run db:migrate`  | Apply migrations to the database                                                         |
 
 ## How the code is organized
 
@@ -149,6 +156,9 @@ A few decisions worth knowing about:
   network. `src/lib/posting-import.ts` checks the address before connecting,
   connects to exactly the address it checked, and checks again after every
   redirect.
+- **The browser tests never call the real AI or GitHub.** They run against a
+  stand-in for the Claude API (`e2e/mock-claude.mjs`) and create signed-in
+  test users directly in the test database (`e2e/create-user.mts`).
 - **Only the CV's text is stored,** never the PDF file.
 - **AI answers are structured, not free text.** Each request names a schema
   (`src/lib/ai/schemas.ts`) and the API returns JSON matching it, which is
@@ -178,5 +188,6 @@ These steps use free plans. They have not been run for this repository yet.
 
 ## Not built yet
 
+- Email reminders before deadlines.
 - Reading scanned (image-only) CVs.
 - Sites that show a posting only after login cannot be imported from a link.

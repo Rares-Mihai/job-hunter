@@ -98,6 +98,8 @@ async function ApplicationDetail({
             hasCv={cv.text.trim() !== ""}
             analysis={application.analysis}
             match={application.match}
+            coverLetter={application.coverLetter}
+            interviewPrep={application.interviewPrep}
           />
 
           <section aria-labelledby="history-heading">

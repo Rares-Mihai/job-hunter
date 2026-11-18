@@ -94,6 +94,17 @@ describe("computeStats", () => {
       NOW,
     );
     expect(stats.reachedInterview).toBe(1);
+    expect(stats.reachedOffer).toBe(0);
+  });
+
+  it("counts an offer, which also counts as an interview", () => {
+    const stats = computeStats(
+      [application("a", "offer", 30)],
+      [change("a", "applied", 25), change("a", "offer", 5)],
+      NOW,
+    );
+    expect(stats.reachedOffer).toBe(1);
+    expect(stats.reachedInterview).toBe(1);
   });
 
   it("puts each application in the week it was first sent", () => {

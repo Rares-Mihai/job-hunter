@@ -64,6 +64,9 @@ export function Board({
   );
   const [, startTransition] = useTransition();
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  // Changes on every move into Offer, which replays the celebration.
+  const [celebration, setCelebration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const dndId = useId();
 
@@ -90,6 +93,8 @@ export function Board({
     const card = shownCards.find((c) => c.id === id);
     if (!card || card.status === target) return;
 
+    if (target === "offer") setCelebration((count) => count + 1);
+
     if (demo) {
       setDemoCards((current) =>
         current.map((c) => (c.id === id ? { ...c, status: target } : c)),
@@ -106,6 +111,16 @@ export function Board({
 
   const draggedCard = shownCards.find((card) => card.id === draggedId) ?? null;
 
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const visibleCards =
+    words.length === 0
+      ? shownCards
+      : shownCards.filter((card) => {
+          const text =
+            `${card.company} ${card.role} ${card.location ?? ""}`.toLowerCase();
+          return words.every((word) => text.includes(word));
+        });
+
   return (
     <DndContext
       id={dndId}
@@ -119,13 +134,33 @@ export function Board({
           {error}
         </p>
       )}
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label htmlFor="board-filter" className="font-semibold">
+          Find
+        </label>
+        <input
+          id="board-filter"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Company, role or place"
+          autoComplete="off"
+          className="field w-72 max-w-full"
+        />
+        <p aria-live="polite" className="text-ink-soft">
+          {words.length > 0 &&
+            `${visibleCards.length} of ${shownCards.length} shown`}
+        </p>
+      </div>
+      {celebration > 0 && <Celebration key={celebration} />}
       <div className="-mx-5 overflow-x-auto px-5 pb-4">
         <div className="grid min-w-[1100px] grid-cols-5 gap-5">
           {STATUSES.map((status) => (
             <Column
               key={status}
               status={status}
-              cards={shownCards.filter((card) => card.status === status)}
+              cards={visibleCards.filter((card) => card.status === status)}
+              filtering={words.length > 0}
               draggedId={draggedId}
               linked={!demo}
             />
@@ -148,9 +183,11 @@ function Column({
   cards,
   draggedId,
   linked,
+  filtering,
 }: {
   status: Status;
   cards: BoardCard[];
+  filtering: boolean;
   draggedId: string | null;
   linked: boolean;
 }) {
@@ -184,7 +221,7 @@ function Column({
       >
         {cards.length === 0 && (
           <p className="px-1.5 pt-1 text-sm text-ink-soft">
-            {EMPTY_HINT[status]}
+            {filtering ? "No matches here." : EMPTY_HINT[status]}
           </p>
         )}
         {cards.map((card) => (
@@ -271,5 +308,33 @@ function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
         </p>
       )}
     </article>
+  );
+}
+
+const CONFETTI_COLORS = ["hl-yellow", "hl-green", "hl-pink", "hl-blue"];
+
+/** A short burst of highlighter-coloured confetti for a new offer. */
+function Celebration() {
+  return (
+    <>
+      <p role="status" className="sr-only">
+        An offer. Congratulations!
+      </p>
+      <div aria-hidden="true" className="confetti">
+        {Array.from({ length: 28 }, (_, i) => (
+          <span
+            key={i}
+            className={CONFETTI_COLORS[i % CONFETTI_COLORS.length]}
+            style={
+              {
+                "--x": `${(i * 37) % 100}vw`,
+                "--delay": `${(i % 7) * 60}ms`,
+                "--turn": `${(i % 5) * 80 - 160}deg`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+    </>
   );
 }

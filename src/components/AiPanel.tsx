@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   analyzeJobAction,
+  draftCoverLetterAction,
   matchCvAction,
+  prepareInterviewAction,
   type ActionResult,
 } from "@/app/actions";
-import type { CvMatch, JobAnalysis } from "@/lib/ai/schemas";
+import type { CvMatch, InterviewPrep, JobAnalysis } from "@/lib/ai/schemas";
 
 const SENIORITY_LABELS: Record<JobAnalysis["seniority"], string | null> = {
   internship: "Internship",
@@ -24,9 +26,11 @@ type Props = {
   hasCv: boolean;
   analysis: JobAnalysis | null;
   match: CvMatch | null;
+  coverLetter: string | null;
+  interviewPrep: InterviewPrep | null;
 };
 
-type Task = "analysis" | "match";
+type Task = "analysis" | "match" | "letter" | "prep";
 
 export function AiPanel({
   applicationId,
@@ -35,6 +39,8 @@ export function AiPanel({
   hasCv,
   analysis,
   match,
+  coverLetter,
+  interviewPrep,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [running, setRunning] = useState<Task | null>(null);
@@ -153,6 +159,113 @@ export function AiPanel({
           )}
         </section>
       )}
+
+      {hasPosting && hasCv && (
+        <section aria-labelledby="letter-heading">
+          <h2 id="letter-heading" className="text-2xl font-bold">
+            Cover letter draft
+          </h2>
+          {!coverLetter && (
+            <p className="mt-3 max-w-[55ch] text-ink-soft">
+              A first draft built only from what your CV says. Edit it before
+              you send it.
+            </p>
+          )}
+          {coverLetter && <CoverLetter text={coverLetter} />}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={coverLetter ? "btn btn-quiet" : "btn btn-primary"}
+              disabled={pending}
+              onClick={() => run("letter", draftCoverLetterAction)}
+            >
+              {running === "letter"
+                ? "Writing the draft…"
+                : coverLetter
+                  ? "Write another draft"
+                  : "Draft a cover letter"}
+            </button>
+            {error?.task === "letter" && (
+              <p role="alert" className="font-medium text-danger">
+                {error.message}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {hasPosting && hasCv && (
+        <section aria-labelledby="prep-heading">
+          <h2 id="prep-heading" className="text-2xl font-bold">
+            Interview prep
+          </h2>
+          {!interviewPrep && (
+            <p className="mt-3 max-w-[55ch] text-ink-soft">
+              Questions you are likely to get for this job, with a pointer for
+              each one.
+            </p>
+          )}
+          {interviewPrep && (
+            <ol className="mt-3 flex max-w-[60ch] list-decimal flex-col gap-4 pl-5 marker:font-semibold">
+              {interviewPrep.questions.map((item, index) => (
+                <li key={`${item.question}-${index}`}>
+                  <p className="font-semibold">{item.question}</p>
+                  <p className="mt-1 text-ink-soft">{item.why}</p>
+                  <p className="mt-1">{item.tip}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={interviewPrep ? "btn btn-quiet" : "btn btn-primary"}
+              disabled={pending}
+              onClick={() => run("prep", prepareInterviewAction)}
+            >
+              {running === "prep"
+                ? "Preparing questions…"
+                : interviewPrep
+                  ? "Prepare again"
+                  : "Prepare for the interview"}
+            </button>
+            {error?.task === "prep" && (
+              <p role="alert" className="font-medium text-danger">
+                {error.message}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function CoverLetter({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="max-w-[60ch] rounded-md border border-line bg-surface px-4 py-3 whitespace-pre-wrap">
+        {text}
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <button type="button" className="btn btn-quiet" onClick={copy}>
+          Copy text
+        </button>
+        <p aria-live="polite" className="font-medium">
+          {copied && <span className="hl hl-green">Copied</span>}
+        </p>
+      </div>
     </div>
   );
 }

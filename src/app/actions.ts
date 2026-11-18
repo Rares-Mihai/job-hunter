@@ -3,14 +3,25 @@
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { AiError, analyzeJob, isAiConfigured, matchCv } from "@/lib/ai/client";
+import {
+  AiError,
+  analyzeJob,
+  draftCoverLetter,
+  isAiConfigured,
+  matchCv,
+  prepareInterview,
+} from "@/lib/ai/client";
+import type { JobAnalysis } from "@/lib/ai/schemas";
 import { describeLimit, reserveAiRequest } from "@/lib/ai/usage";
 import {
   createApplication,
   deleteApplication,
   getApplication,
+  deleteUserAndData,
   getCv,
   MAX_WEEKLY_TARGET,
+  saveCoverLetter,
+  saveInterviewPrep,
   saveWeeklyTarget,
   moveApplication,
   saveAnalysis,
@@ -307,4 +318,72 @@ export async function importPostingAction(
     message: "Imported. Check the fields below, then add the application.",
     values: { ...result.posting, url: String(link).trim() },
   };
+}
+
+/** Shared by the two AI features that need the CV, the posting and a free request. */
+async function withCvAndPosting(
+  id: string,
+  run: (context: {
+    userId: string;
+    cv: string;
+    company: string;
+    role: string;
+    jobDescription: string;
+    analysis: JobAnalysis | null;
+  }) => Promise<void>,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const application = await getApplication(user.id, id);
+  if (!application) {
+    return { ok: false, message: "This application no longer exists." };
+  }
+  if (application.jobDescription.trim() === "") {
+    return { ok: false, message: "Paste the job posting and save it first." };
+  }
+  const cv = await getCv(user.id);
+  if (cv.text.trim() === "") {
+    return { ok: false, message: "Add your CV on the CV page first." };
+  }
+  const reserved = await reserveAi(user.id);
+  if (!reserved.ok) return reserved;
+
+  try {
+    await run({
+      userId: user.id,
+      cv: cv.text,
+      company: application.company,
+      role: application.role,
+      jobDescription: application.jobDescription,
+      analysis: application.analysis,
+    });
+  } catch (error) {
+    if (error instanceof AiError) return { ok: false, message: error.message };
+    throw error;
+  }
+  refresh();
+  return { ok: true };
+}
+
+export async function draftCoverLetterAction(
+  id: string,
+): Promise<ActionResult> {
+  return withCvAndPosting(id, async ({ userId, ...context }) => {
+    await saveCoverLetter(userId, id, await draftCoverLetter(context));
+  });
+}
+
+export async function prepareInterviewAction(
+  id: string,
+): Promise<ActionResult> {
+  return withCvAndPosting(id, async ({ userId, ...context }) => {
+    await saveInterviewPrep(userId, id, await prepareInterview(context));
+  });
+}
+
+/** Deletes the signed-in user's account and all of their data. Cannot be undone. */
+export async function deleteAccountAction(): Promise<void> {
+  const user = await requireUser();
+  // Removing the user also removes their sessions, so they are signed out.
+  await deleteUserAndData(user.id);
+  redirect("/sign-in");
 }

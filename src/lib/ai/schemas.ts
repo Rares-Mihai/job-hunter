@@ -63,6 +63,38 @@ export const cvMatchSchema = z.object({
 
 export type CvMatch = z.infer<typeof cvMatchSchema>;
 
+export const coverLetterSchema = z.object({
+  letter: z
+    .string()
+    .describe(
+      "The body of the cover letter as plain text, paragraphs separated by a blank line. No greeting line, no sign-off, no placeholders in brackets.",
+    ),
+});
+
+export const interviewPrepSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        question: z
+          .string()
+          .describe("A question the interviewer is likely to ask."),
+        why: z
+          .string()
+          .describe(
+            "One sentence on why this question is likely for this job and this CV.",
+          ),
+        tip: z
+          .string()
+          .describe(
+            "One or two sentences on how the candidate could answer, using what is in the CV.",
+          ),
+      }),
+    )
+    .describe("Six to eight likely interview questions, most important first."),
+});
+
+export type InterviewPrep = z.infer<typeof interviewPrepSchema>;
+
 /** Models occasionally return a score outside the range; keep it displayable. */
 export function clampScore(score: number): number {
   if (!Number.isFinite(score)) return 0;

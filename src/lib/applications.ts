@@ -5,10 +5,11 @@ import {
   cvs,
   goals,
   statusChanges,
+  users,
   type Application,
   type StatusChange,
 } from "@/db/schema";
-import type { CvMatch, JobAnalysis } from "./ai/schemas";
+import type { CvMatch, InterviewPrep, JobAnalysis } from "./ai/schemas";
 import type { Status } from "./status";
 import { isUuid, type ApplicationInput } from "./validation";
 
@@ -17,6 +18,14 @@ import { isUuid, type ApplicationInput } from "./validation";
 // Every function takes the id of the signed-in user first and only ever
 // touches that user's rows. Nothing outside this file queries these tables,
 // so this is the one place to check that users cannot see each other's data.
+
+/** Everything the AI produced from the posting and the CV, cleared when either changes. */
+const STALE_AI_RESULTS = {
+  analysis: null,
+  match: null,
+  coverLetter: null,
+  interviewPrep: null,
+};
 
 /** Matches one application, but only if it belongs to this user. */
 function ownedBy(userId: string, id: string) {
@@ -114,7 +123,7 @@ export async function updateApplication(
       .update(applications)
       .set({
         ...input,
-        ...(postingChanged ? { analysis: null, match: null } : {}),
+        ...(postingChanged ? STALE_AI_RESULTS : {}),
         updatedAt: new Date(),
       })
       .where(ownedBy(userId, id));
@@ -193,6 +202,35 @@ export async function saveMatch(
     .where(ownedBy(userId, id));
 }
 
+export async function saveCoverLetter(
+  userId: string,
+  id: string,
+  coverLetter: string,
+): Promise<void> {
+  if (!isUuid(id)) return;
+  await getDb()
+    .update(applications)
+    .set({ coverLetter, updatedAt: new Date() })
+    .where(ownedBy(userId, id));
+}
+
+export async function saveInterviewPrep(
+  userId: string,
+  id: string,
+  interviewPrep: InterviewPrep,
+): Promise<void> {
+  if (!isUuid(id)) return;
+  await getDb()
+    .update(applications)
+    .set({ interviewPrep, updatedAt: new Date() })
+    .where(ownedBy(userId, id));
+}
+
+/** Removes the account and, through the database's cascade rules, everything it owns. */
+export async function deleteUserAndData(userId: string): Promise<void> {
+  await getDb().delete(users).where(eq(users.id, userId));
+}
+
 export type SavedCv = {
   text: string;
   /** Name of the uploaded PDF the text was read from, if any. */
@@ -226,11 +264,12 @@ export async function saveCv(userId: string, cv: SavedCv): Promise<void> {
         set: { text: cv.text, fileName: cv.fileName, updatedAt: new Date() },
       });
 
-    // Earlier match scores were based on the previous CV text.
+    // Match scores, cover letters and interview prep were based on the
+    // previous CV text. (The posting analysis does not use the CV.)
     if ((current?.text ?? "") !== cv.text) {
       await tx
         .update(applications)
-        .set({ match: null })
+        .set({ match: null, coverLetter: null, interviewPrep: null })
         .where(eq(applications.userId, userId));
     }
   });
