@@ -1,0 +1,17 @@
+name = "linear-agent-relay"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# owner/repo that receives the agent runs
+GITHUB_REPO = "Rares-Mihai/job-hunter"
+# Linear label that starts the agents
+TRIGGER_LABEL = "agent"
+# Optional: route Linear teams to different repos, e.g. '{"JOB":"you/job-hunter","DEV":"you/dev-tool"}'
+# REPO_MAP = ""
+# Optional: comma-separated Linear user ids allowed to trigger agents
+# ALLOWED_ACTOR_IDS = ""
+
+# Secrets (set with `npx wrangler secret put NAME`, never put them here):
+#   LINEAR_WEBHOOK_SECRET  - signing secret from the Linear webhook page
+#   GITHUB_TOKEN           - fine-grained PAT, Contents: read & write on the repo(s)
