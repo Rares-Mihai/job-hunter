@@ -44,10 +44,19 @@ const EMPTY_HINT: Record<Status, string> = {
   rejected: "Drag a card here if it does not work out.",
 };
 
-export function Board({ cards }: { cards: BoardCard[] }) {
+export function Board({
+  cards,
+  demo = false,
+}: {
+  cards: BoardCard[];
+  /** Demo boards keep moves in the browser and have nothing to open. */
+  demo?: boolean;
+}) {
+  const [demoCards, setDemoCards] = useState(cards);
+  const sourceCards = demo ? demoCards : cards;
   // Show the card in its new column immediately, before the server confirms.
   const [shownCards, moveOptimistically] = useOptimistic(
-    cards,
+    sourceCards,
     (current, move: { id: string; status: Status }) =>
       current.map((card) =>
         card.id === move.id ? { ...card, status: move.status } : card,
@@ -81,6 +90,13 @@ export function Board({ cards }: { cards: BoardCard[] }) {
     const card = shownCards.find((c) => c.id === id);
     if (!card || card.status === target) return;
 
+    if (demo) {
+      setDemoCards((current) =>
+        current.map((c) => (c.id === id ? { ...c, status: target } : c)),
+      );
+      return;
+    }
+
     startTransition(async () => {
       moveOptimistically({ id, status: target });
       const result = await moveApplicationAction(id, target);
@@ -111,6 +127,7 @@ export function Board({ cards }: { cards: BoardCard[] }) {
               status={status}
               cards={shownCards.filter((card) => card.status === status)}
               draggedId={draggedId}
+              linked={!demo}
             />
           ))}
         </div>
@@ -130,10 +147,12 @@ function Column({
   status,
   cards,
   draggedId,
+  linked,
 }: {
   status: Status;
   cards: BoardCard[];
   draggedId: string | null;
+  linked: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const headingId = `column-${status}`;
@@ -173,6 +192,7 @@ function Column({
             key={card.id}
             card={card}
             hidden={card.id === draggedId}
+            linked={linked}
           />
         ))}
       </div>
@@ -180,7 +200,15 @@ function Column({
   );
 }
 
-function DraggableCard({ card, hidden }: { card: BoardCard; hidden: boolean }) {
+function DraggableCard({
+  card,
+  hidden,
+  linked,
+}: {
+  card: BoardCard;
+  hidden: boolean;
+  linked: boolean;
+}) {
   // Only the pointer listeners are attached. Keyboard and screen-reader users
   // change the stage with the "Stage" field on the application page instead.
   const { setNodeRef, listeners } = useDraggable({ id: card.id });
@@ -193,12 +221,15 @@ function DraggableCard({ card, hidden }: { card: BoardCard; hidden: boolean }) {
         hidden ? "opacity-30" : ""
       }`}
     >
-      <CardBody card={card} asLink />
+      <CardBody card={card} asLink={linked} />
     </div>
   );
 }
 
 function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
+  // The deadline is the last day to apply, so it stops mattering once the
+  // card has left the wishlist (including right after a drag).
+  const deadline = card.status === "wishlist" ? card.deadline : null;
   return (
     <article className="relative rounded-md border border-line bg-surface px-3.5 py-3 hover:border-ink-soft">
       <h3 className="text-[1.05rem] font-bold">
@@ -219,17 +250,17 @@ function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
         {card.role}
         {card.location ? `, ${card.location}` : ""}
       </p>
-      {(card.deadline || card.matchScore !== null) && (
+      {(deadline || card.matchScore !== null) && (
         <p className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-          {card.deadline && (
+          {deadline && (
             <span
               className={
-                card.deadline.tone === "later"
+                deadline.tone === "later"
                   ? "text-ink-soft"
                   : "hl hl-pink font-medium"
               }
             >
-              {card.deadline.label}
+              {deadline.label}
             </span>
           )}
           {card.matchScore !== null && (

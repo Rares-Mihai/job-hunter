@@ -157,7 +157,7 @@ export function AiPanel({
   );
 }
 
-function AnalysisResult({
+export function AnalysisResult({
   analysis,
   draw,
 }: {
@@ -193,7 +193,13 @@ function AnalysisResult({
   );
 }
 
-function MatchResult({ match, draw }: { match: CvMatch; draw: boolean }) {
+export function MatchResult({
+  match,
+  draw,
+}: {
+  match: CvMatch;
+  draw: boolean;
+}) {
   return (
     <div className="mt-3 flex flex-col gap-5">
       <div className="flex items-end gap-4">

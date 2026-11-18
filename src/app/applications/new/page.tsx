@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { createApplicationAction } from "@/app/actions";
 import { requireUser } from "@/lib/session";
 import { FreshOnNavigation } from "@/components/FreshOnNavigation";
-import {
-  ApplicationForm,
-  EMPTY_APPLICATION,
-} from "@/components/ApplicationForm";
+import { NewApplication } from "@/components/NewApplication";
 
 export const metadata: Metadata = { title: "Add application" };
 
@@ -32,12 +28,7 @@ async function NewApplicationForm() {
   await requireUser();
   return (
     <FreshOnNavigation>
-      <ApplicationForm
-        action={createApplicationAction}
-        initial={EMPTY_APPLICATION}
-        submitLabel="Add application"
-        pendingLabel="Adding…"
-      />
+      <NewApplication />
     </FreshOnNavigation>
   );
 }

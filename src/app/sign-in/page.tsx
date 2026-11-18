@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -54,9 +55,14 @@ async function SignIn({
           GitHub when it asks.
         </p>
       )}
-      <button type="submit" className="btn btn-primary">
-        Sign in with GitHub
-      </button>
+      <div className="flex flex-wrap items-center gap-4">
+        <button type="submit" className="btn btn-primary">
+          Sign in with GitHub
+        </button>
+        <Link href="/demo" className="link">
+          Try the demo first
+        </Link>
+      </div>
       <p className="mt-4 max-w-[52ch] text-sm text-ink-soft">
         GitHub only shares your name, email and profile picture. Your
         applications and CV are visible to you alone.

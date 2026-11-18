@@ -93,6 +93,14 @@ export const aiUsage = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.day] })],
 );
 
+// The number of applications each user aims to send per week.
+export const goals = pgTable("goals", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  weeklyTarget: integer("weekly_target").notNull(),
+});
+
 export type Application = typeof applications.$inferSelect;
 export type StatusChange = typeof statusChanges.$inferSelect;
 export type Cv = typeof cvs.$inferSelect;

@@ -8,6 +8,13 @@
       "when": 1794857991955,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794858750986,
+      "tag": "0001_weekly_goal",
+      "breakpoints": true
     }
   ]
 }

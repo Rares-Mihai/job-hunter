@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import {
   applications,
   cvs,
+  goals,
   statusChanges,
   type Application,
   type StatusChange,
@@ -233,4 +234,26 @@ export async function saveCv(userId: string, cv: SavedCv): Promise<void> {
         .where(eq(applications.userId, userId));
     }
   });
+}
+
+export const DEFAULT_WEEKLY_TARGET = 5;
+export const MAX_WEEKLY_TARGET = 50;
+
+export async function getWeeklyTarget(userId: string): Promise<number> {
+  const rows = await getDb()
+    .select({ weeklyTarget: goals.weeklyTarget })
+    .from(goals)
+    .where(eq(goals.userId, userId))
+    .limit(1);
+  return rows[0]?.weeklyTarget ?? DEFAULT_WEEKLY_TARGET;
+}
+
+export async function saveWeeklyTarget(
+  userId: string,
+  weeklyTarget: number,
+): Promise<void> {
+  await getDb()
+    .insert(goals)
+    .values({ userId, weeklyTarget })
+    .onConflictDoUpdate({ target: goals.userId, set: { weeklyTarget } });
 }
