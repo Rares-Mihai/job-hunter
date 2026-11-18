@@ -10,7 +10,6 @@ import {
 } from "./prompts";
 import {
   clampScore,
-  coverLetterSchema,
   cvMatchSchema,
   interviewPrepSchema,
   jobAnalysisSchema,
@@ -116,14 +115,34 @@ export async function matchCv(input: {
 
 type ApplicationContext = Parameters<typeof buildCoverLetterPrompt>[0];
 
-export async function draftCoverLetter(
+/**
+ * Writes a cover letter draft and hands it over piece by piece as the model
+ * produces it, so the page can show the text while it is being written.
+ * Throws AiError (before or during the stream) with a message for the user.
+ */
+export async function* streamCoverLetter(
   input: ApplicationContext,
-): Promise<string> {
-  const result = await askForStructured(
-    buildCoverLetterPrompt(input),
-    coverLetterSchema,
-  );
-  return result.letter.trim();
+): AsyncGenerator<string> {
+  const client = getClient();
+  const prompt = buildCoverLetterPrompt(input);
+  try {
+    const stream = client.messages.stream({
+      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
+      max_tokens: 1200,
+      system: prompt.system,
+      messages: [{ role: "user", content: prompt.user }],
+    });
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        yield event.delta.text;
+      }
+    }
+  } catch (error) {
+    throw new AiError(describeApiFailure(error));
+  }
 }
 
 export async function prepareInterview(

@@ -17,6 +17,8 @@ import {
   saveMatch,
   updateApplication,
 } from "./applications";
+import { addDays, toDayString } from "./dates";
+import { sendDueReminders, setRemindersEnabled, type Email } from "./reminders";
 import type { ApplicationInput } from "./validation";
 
 // These tests run against a real Postgres database and check the property
@@ -169,6 +171,71 @@ describe.skipIf(!url)("data ownership", () => {
     process.env.AI_DAILY_LIMIT_PER_USER = "1000000";
     process.env.AI_DAILY_LIMIT_TOTAL = "1";
     expect(await reserveAiRequest(ANA)).toBe("total-limit");
+  });
+
+  it("emails deadline reminders once, only to people who asked", async () => {
+    const now = new Date();
+    const soon = toDayString(addDays(now, 2));
+    const far = toDayString(addDays(now, 20));
+    const base = { ...INPUT, status: "wishlist" as const };
+    await createApplication(ANA, {
+      ...base,
+      company: "Soon Co",
+      deadline: soon,
+    });
+    await createApplication(ANA, { ...base, company: "Far Co", deadline: far });
+    await createApplication(ANA, {
+      ...base,
+      company: "Already Sent Co",
+      status: "applied",
+      deadline: soon,
+    });
+    await createApplication(BOGDAN, {
+      ...base,
+      company: "Bogdan Co",
+      deadline: soon,
+    });
+    await setRemindersEnabled(ANA, true); // Bogdan never switched them on
+
+    const outbox: Email[] = [];
+    const send = async (email: Email) => void outbox.push(email);
+
+    expect(await sendDueReminders(now, send)).toEqual({ sent: 1, failed: 0 });
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0].to).toBe(`${ANA}@example.com`);
+    expect(outbox[0].text).toContain("Soon Co");
+    expect(outbox[0].text).not.toContain("Far Co");
+    expect(outbox[0].text).not.toContain("Already Sent Co");
+    expect(outbox[0].text).not.toContain("Bogdan Co");
+
+    // A second run the same day sends nothing new.
+    expect(await sendDueReminders(now, send)).toEqual({ sent: 0, failed: 0 });
+    expect(outbox).toHaveLength(1);
+  });
+
+  it("tries again later when sending fails", async () => {
+    const now = new Date();
+    await createApplication(BOGDAN, {
+      ...INPUT,
+      company: "Retry Co",
+      deadline: toDayString(addDays(now, 1)),
+    });
+    await setRemindersEnabled(BOGDAN, true);
+    await setRemindersEnabled(ANA, false);
+
+    const failing = async () => {
+      throw new Error("mail server down");
+    };
+    expect(await sendDueReminders(now, failing)).toEqual({
+      sent: 0,
+      failed: 1,
+    });
+
+    const outbox: Email[] = [];
+    expect(
+      await sendDueReminders(now, async (email) => void outbox.push(email)),
+    ).toEqual({ sent: 1, failed: 0 });
+    expect(outbox[0].text).toContain("Retry Co");
   });
 
   it("removes a user's data when the user is deleted", async () => {

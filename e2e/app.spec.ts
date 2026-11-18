@@ -164,6 +164,8 @@ test("upload a CV and use every AI feature", async ({ page, context }) => {
   await expect(page.getByText("You cover the required skills.")).toBeVisible();
 
   await page.getByRole("button", { name: "Draft a cover letter" }).click();
+  // The letter is streamed: the first part shows before the whole text does.
+  await expect(page.getByText(/I built a library/)).toBeVisible();
   await expect(
     page.getByText(/I built a library system with PostgreSQL/),
   ).toBeVisible();
@@ -206,6 +208,70 @@ test("one user cannot open another user's application", async ({ browser }) => {
 
   await anaContext.close();
   await bogdanContext.close();
+});
+
+test("move a card with the keyboard", async ({ page, context }) => {
+  await signIn(context, "Ana");
+  await addApplication(page, { company: "Keyboard Co", role: "Intern" });
+  await page.goto("/");
+
+  // Each step waits for the screen-reader announcement, which is also how a
+  // person using a screen reader knows the key press was taken.
+  const said = (text: string | RegExp) =>
+    expect(page.getByText(text).first()).toBeAttached();
+  const moveButton = page.getByRole("button", { name: "Move Keyboard Co" });
+
+  await moveButton.focus();
+  await page.keyboard.press("Space");
+  await said("Keyboard Co is over Wishlist.");
+  await page.keyboard.press("ArrowRight");
+  await said("Keyboard Co is over Applied.");
+  await page.keyboard.press("ArrowRight");
+  await said("Keyboard Co is over Interview.");
+  await page.keyboard.press("Space");
+  await said("Keyboard Co moved to Interview.");
+  await expect(column(page, "interview")).toContainText("Keyboard Co");
+  // Focus stays on the card that was moved, ready for the next key press.
+  await expect(moveButton).toBeFocused();
+
+  // Escape cancels a move.
+  await page.keyboard.press("Space");
+  await said("Keyboard Co is over Interview.");
+  await page.keyboard.press("ArrowLeft");
+  await said("Keyboard Co is over Applied.");
+  await page.keyboard.press("Escape");
+  await said(/Move cancelled/);
+  await expect(column(page, "interview")).toContainText("Keyboard Co");
+
+  // Enter on the card's link still opens it.
+  await page.getByRole("link", { name: "Keyboard Co" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("Moved from Wishlist to Interview"),
+  ).toBeVisible();
+});
+
+test("deadline reminders are opt-in, and the daily trigger is locked", async ({
+  page,
+  context,
+  request,
+}) => {
+  await signIn(context, "Ana");
+  await page.goto("/account");
+  const box = page.getByRole("checkbox", { name: /Email me when a job/ });
+  await expect(box).not.toBeChecked();
+  await box.check();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(box).toBeChecked();
+
+  // Without the secret, nobody can make the server send emails.
+  expect((await request.get("/api/cron/reminders")).status()).toBe(401);
+  const wrong = await request.get("/api/cron/reminders", {
+    headers: { authorization: "Bearer guess" },
+  });
+  expect(wrong.status()).toBe(401);
 });
 
 test("deleting the account removes the data and signs out", async ({

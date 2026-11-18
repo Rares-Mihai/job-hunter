@@ -63,14 +63,6 @@ export const cvMatchSchema = z.object({
 
 export type CvMatch = z.infer<typeof cvMatchSchema>;
 
-export const coverLetterSchema = z.object({
-  letter: z
-    .string()
-    .describe(
-      "The body of the cover letter as plain text, paragraphs separated by a blank line. No greeting line, no sign-off, no placeholders in brackets.",
-    ),
-});
-
 export const interviewPrepSchema = z.object({
   questions: z
     .array(

@@ -17,6 +17,11 @@ export const E2E_ENV = {
   ANTHROPIC_API_KEY: "test-key",
   ANTHROPIC_BASE_URL: `http://127.0.0.1:${MOCK_CLAUDE_PORT}`,
   MOCK_CLAUDE_PORT: String(MOCK_CLAUDE_PORT),
+  // Reminders are "set up" so their settings show, but the tests never
+  // trigger a send.
+  RESEND_API_KEY: "test-key",
+  REMINDER_FROM_EMAIL: "Job Hunter <test@example.com>",
+  CRON_SECRET: "browser-test-cron-secret",
 };
 
 export default defineConfig({

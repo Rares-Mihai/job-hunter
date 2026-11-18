@@ -6,6 +6,7 @@ import { getAuth, isSignInConfigured } from "./auth";
 export type CurrentUser = {
   id: string;
   name: string;
+  email: string;
   image: string | null;
 };
 
@@ -25,6 +26,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   return {
     id: session.user.id,
     name: session.user.name,
+    email: session.user.email,
     image: session.user.image ?? null,
   };
 });
