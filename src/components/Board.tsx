@@ -273,7 +273,7 @@ function Column({
         id={headingId}
         className="flex items-baseline gap-2 text-[1.35rem] font-bold"
       >
-        {STATUS_LABELS[status]}
+        {STATUS_LABELS[status]}{" "}
         <span className="font-sans text-base font-medium text-ink-soft">
           ({count})
         </span>
