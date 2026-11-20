@@ -293,3 +293,10 @@ test("deleting the account removes the data and signs out", async ({
   await page.goto("/");
   await expect(page).toHaveURL(/\/sign-in$/);
 });
+
+test("every page links to the source code", async ({ page }) => {
+  await page.goto("/sign-in");
+  await expect(
+    page.getByRole("link", { name: "Source code on GitHub" }),
+  ).toHaveAttribute("href", "https://github.com/Rares-Mihai/job-hunter");
+});

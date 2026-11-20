@@ -33,6 +33,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="mx-auto w-full max-w-[1400px] min-w-0 flex-1 px-5 py-8">
           {children}
         </main>
+        <footer className="border-t border-line bg-surface">
+          <div className="mx-auto flex w-full max-w-[1400px] px-5 py-4 text-sm text-ink-soft">
+            <a
+              href="https://github.com/Rares-Mihai/job-hunter"
+              className="link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Source code on GitHub
+            </a>
+          </div>
+        </footer>
       </body>
     </html>
   );
