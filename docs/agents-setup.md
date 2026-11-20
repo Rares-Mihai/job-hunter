@@ -6,7 +6,7 @@ Add the label **`agent`** to a Linear issue and three agents take it from there:
 |---|---|---|
 | Planner | Claude Opus | Read the repo, write a plan (no code changes) |
 | Coder | Claude Sonnet | Edit code, run tests, commit on a branch |
-| Reviewer | Codex (or Claude Opus if no OpenAI key) | Read the diff + test output, approve or request changes |
+| Reviewer | Set by `AGENT_REVIEWER` (agy, gemini, codex, claude). Default: Gemini if `GEMINI_API_KEY` is set, else Codex, else Claude Opus | Read the diff + test output, approve or request changes |
 
 The coder fixes the reviewer's findings for up to 2 rounds. Then a PR opens
 (ready if approved, **draft** if not) with `Fixes JOB-42` so Linear links it.
@@ -36,6 +36,7 @@ Repo → Settings → Secrets and variables → Actions
 |---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | **either this** — uses your Claude Pro/Max plan, no per-request bill. Run `claude setup-token` in a terminal with Claude Code installed and paste the token |
 | `ANTHROPIC_API_KEY` | **or this** — from console.anthropic.com, billed per request |
+| `GEMINI_API_KEY` | optional — makes Gemini the reviewer (free key at aistudio.google.com/apikey). Pick a model with the `GEMINI_MODEL` variable |
 | `OPENAI_API_KEY` | optional — enables Codex as reviewer (billed per request). Without it Claude reviews |
 | `LINEAR_API_KEY` | Linear → Settings → Security & access → Personal API keys |
 | `AGENT_GH_TOKEN` | optional — fine-grained PAT (Contents + Pull requests: write). Without it the PR still opens, but your other CI workflows won't run on it |
@@ -91,3 +92,46 @@ npx wrangler deploy                            # prints https://linear-agent-rel
 - Prefer zero code? Linear can also assign issues directly to agents like
   GitHub Copilot, Cursor or Codex. This setup is for when you want your own
   planner → coder → reviewer pipeline you control.
+
+---
+
+## Optional: run the agents on your own computer (Antigravity reviewer)
+
+Use this to have **Antigravity (`agy`)** review with your Google AI Pro/Ultra
+login. That login only works on a machine where you signed in, so the agents
+run on your PC (WSL) instead of GitHub's servers.
+
+**Trade-offs:** the PC must be on with WSL running when an issue gets the
+`agent` label (otherwise the run waits in the queue), and the agents run
+commands on your machine.
+
+### 1. Protect the runner (public repo)
+Settings → Actions → General → *Approval for running fork pull request
+workflows from contributors* → **Require approval for all external
+contributors**. Without this, a stranger's PR could edit a workflow to run on
+your PC. Never approve workflow runs on PRs from people you don't know.
+
+### 2. Install and sign in to Antigravity in WSL
+```bash
+curl -fsSL https://antigravity.google/cli/install.sh | bash   # see antigravity.google/docs for the current command
+agy          # choose sign in with Google, use the account with your plan, then /exit
+agy -p "Reply PONG"   # should print PONG
+```
+
+### 3. Add your PC as a runner
+GitHub → repo Settings → Actions → Runners → **New self-hosted runner** →
+Linux, x64. Run the commands it shows in WSL, and when `config.sh` asks for
+labels, enter `agent-pc`. Then start it with `./run.sh` (keep that terminal
+open), or install it as a service with `sudo ./svc.sh install && sudo ./svc.sh start`.
+
+### 4. Switch the workflow over
+Repo variables (Settings → Secrets and variables → Actions → Variables):
+
+| Name | Value |
+|---|---|
+| `AGENT_RUNNER` | `agent-pc` |
+| `AGENT_REVIEWER` | `agy` |
+| `AGY_MODEL` | optional, a name from `agy models` |
+
+To go back to GitHub's servers, delete `AGENT_RUNNER` (and set
+`AGENT_REVIEWER` to `gemini` or `claude`, or delete it).
