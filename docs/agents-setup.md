@@ -6,7 +6,7 @@ Add the label **`agent`** to a Linear issue and three agents take it from there:
 |---|---|---|
 | Planner | Claude Opus | Read the repo, write a plan (no code changes) |
 | Coder | Claude Sonnet | Edit code, run tests, commit on a branch |
-| Reviewer | Codex (or Claude Opus if no OpenAI key) | Read the diff + test output, approve or request changes |
+| Reviewer | Gemini if `GEMINI_API_KEY` is set, else Codex, else Claude Opus | Read the diff + test output, approve or request changes |
 
 The coder fixes the reviewer's findings for up to 2 rounds. Then a PR opens
 (ready if approved, **draft** if not) with `Fixes JOB-42` so Linear links it.
@@ -36,6 +36,7 @@ Repo → Settings → Secrets and variables → Actions
 |---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | **either this** — uses your Claude Pro/Max plan, no per-request bill. Run `claude setup-token` in a terminal with Claude Code installed and paste the token |
 | `ANTHROPIC_API_KEY` | **or this** — from console.anthropic.com, billed per request |
+| `GEMINI_API_KEY` | optional — makes Gemini the reviewer (free key at aistudio.google.com/apikey). Pick a model with the `GEMINI_MODEL` variable |
 | `OPENAI_API_KEY` | optional — enables Codex as reviewer (billed per request). Without it Claude reviews |
 | `LINEAR_API_KEY` | Linear → Settings → Security & access → Personal API keys |
 | `AGENT_GH_TOKEN` | optional — fine-grained PAT (Contents + Pull requests: write). Without it the PR still opens, but your other CI workflows won't run on it |

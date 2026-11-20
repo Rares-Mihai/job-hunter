@@ -7,11 +7,11 @@ A=.github/agents
 BASE="${BASE_BRANCH:-main}"
 PLANNER_MODEL="${PLANNER_MODEL:-claude-opus-5-5}"
 CODER_MODEL="${CODER_MODEL:-claude-sonnet-5-5}"
-REVIEWER_MODEL="${REVIEWER_MODEL:-claude-opus-5-5}"   # only used when no OpenAI key
+REVIEWER_MODEL="${REVIEWER_MODEL:-claude-opus-5-5}"   # only used when no Gemini/OpenAI key
 MAX_ROUNDS="${MAX_REVIEW_ROUNDS:-2}"
 
 # Empty secrets arrive as empty strings; unset them so each CLI picks the right login.
-for v in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN OPENAI_API_KEY; do
+for v in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN OPENAI_API_KEY GEMINI_API_KEY; do
   [ -z "${!v:-}" ] && unset "$v"
 done
 if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
@@ -42,8 +42,28 @@ run_tests() {
   echo "tests: $(cat .agent/tests.status)"
 }
 
+# Everything the reviewer needs, in one file: task, plan, test results, full diff.
+review_bundle() {
+  {
+    echo "=== REVIEW INSTRUCTIONS ==="; cat "$A/reviewer.md"; echo
+    echo "=== ISSUE (.agent/issue.md) ==="; cat .agent/issue.md; echo
+    echo "=== PLAN (.agent/plan.md) ==="; cat .agent/plan.md; echo
+    echo "=== TESTS: $(cat .agent/tests.status 2>/dev/null || echo 'not run') ==="
+    tail -n 150 .agent/tests.txt 2>/dev/null; echo
+    echo "=== COMMITS ==="; git log --oneline "origin/$BASE..HEAD"; echo
+    echo "=== DIFF (git diff origin/$BASE...HEAD) ==="; git diff "origin/$BASE...HEAD"
+  } > .agent/review-input.md
+}
+
 review() { # round
-  if [ -n "${OPENAI_API_KEY:-}" ]; then
+  if [ -n "${GEMINI_API_KEY:-}" ]; then
+    echo "reviewer: Gemini (${GEMINI_MODEL:-default model})"
+    review_bundle
+    # plan = read-only approval mode: Gemini can read files but never edit or run commands.
+    gemini -p "Review the change below. Everything you need is in this input; you may also read files in the repo for context. Reply with the review only, first line VERDICT: APPROVE or VERDICT: CHANGES_REQUESTED." \
+      --approval-mode plan --skip-trust ${GEMINI_MODEL:+-m "$GEMINI_MODEL"} \
+      < .agent/review-input.md > .agent/review.md
+  elif [ -n "${OPENAI_API_KEY:-}" ]; then
     echo "reviewer: Codex"
     CODEX_API_KEY="$OPENAI_API_KEY" codex exec \
       --sandbox read-only \
