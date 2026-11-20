@@ -1,5 +1,7 @@
 # Linear → GitHub multi-agent flow
 
+How the parts work, the daily routine and reusing it on other repos: see [agents-guide.md](agents-guide.md).
+
 Add the label **`agent`** to a Linear issue and three agents take it from there:
 
 | Agent | Model | Can do |
