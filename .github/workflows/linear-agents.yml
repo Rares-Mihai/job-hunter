@@ -21,7 +21,9 @@ permissions:
 
 jobs:
   agents:
-    runs-on: ubuntu-latest
+    # Set the repo variable AGENT_RUNNER to your self-hosted runner's label
+    # (e.g. agent-pc) to run the agents on your own computer. Empty = GitHub cloud.
+    runs-on: ${{ vars.AGENT_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     env:
       ISSUE_ID:    ${{ github.event.client_payload.issue_id || inputs.issue_id }}
@@ -42,6 +44,8 @@ jobs:
       # Reviewer, first one set wins: Gemini → Codex → Claude.
       GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL:      ${{ vars.GEMINI_MODEL }}
+      AGENT_REVIEWER:    ${{ vars.AGENT_REVIEWER }}
+      AGY_MODEL:         ${{ vars.AGY_MODEL }}
       OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
       # A PAT or GitHub App token here lets the agent's PR trigger your normal CI.
       # With the default GITHUB_TOKEN the PR is created but other workflows won't run on it.
@@ -57,7 +61,13 @@ jobs:
         with: { node-version: 22 }
 
       - name: Install agent CLIs
-        run: npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli
+        run: |
+          npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli
+          # On a self-hosted runner, make a user-installed agy visible to later steps.
+          for d in "$HOME/.local/bin" "$HOME/.antigravity/bin" "$HOME/bin"; do
+            [ -d "$d" ] && echo "$d" >> "$GITHUB_PATH"
+          done
+          true
 
       - name: Project setup (optional)
         if: vars.AGENT_SETUP_CMD != ''

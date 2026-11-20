@@ -49,21 +49,58 @@ review_bundle() {
     echo "=== ISSUE (.agent/issue.md) ==="; cat .agent/issue.md; echo
     echo "=== PLAN (.agent/plan.md) ==="; cat .agent/plan.md; echo
     echo "=== TESTS: $(cat .agent/tests.status 2>/dev/null || echo 'not run') ==="
-    tail -n 150 .agent/tests.txt 2>/dev/null; echo
+    tail -n 150 .agent/tests.txt 2>/dev/null || true; echo
     echo "=== COMMITS ==="; git log --oneline "origin/$BASE..HEAD"; echo
     echo "=== DIFF (git diff origin/$BASE...HEAD) ==="; git diff "origin/$BASE...HEAD"
   } > .agent/review-input.md
 }
 
+# Antigravity CLI (agy) with your Google AI subscription login.
+# Only works on a self-hosted runner where you ran `agy` once and signed in.
+agy_review() {
+  review_bundle
+  # Arguments are capped at ~128 KB, so very large diffs get cut.
+  head -c 100000 .agent/review-input.md > .agent/agy-prompt.md
+  cat > .agent/agy-run.sh <<'SH'
+#!/usr/bin/env bash
+exec agy --sandbox --print-timeout 10m ${AGY_MODEL:+--model "$AGY_MODEL"} \
+  -p "$(cat .agent/agy-prompt.md)
+
+Reply with the review only. The first line must be exactly VERDICT: APPROVE or VERDICT: CHANGES_REQUESTED. Do not edit any files."
+SH
+  chmod +x .agent/agy-run.sh
+  # agy drops its output when it is not attached to a terminal, so give it one with `script`.
+  script -qec ".agent/agy-run.sh" /dev/null > .agent/agy-raw.txt 2>&1 || true
+  # Strip terminal colour codes and carriage returns, keep from the VERDICT line on.
+  sed -r 's/\x1B\[[0-9;?]*[A-Za-z]//g; s/\x1B\][^\x07]*\x07//g; s/\r//g' .agent/agy-raw.txt \
+    | sed -n '/VERDICT:/,$p' > .agent/review.md
+  if ! [ -s .agent/review.md ]; then
+    echo "agy gave no review. Its output was:"; tail -n 40 .agent/agy-raw.txt
+    echo "Check that agy is installed and signed in on the runner (run 'agy' once in WSL)."
+    exit 1
+  fi
+}
+
 review() { # round
-  if [ -n "${GEMINI_API_KEY:-}" ]; then
+  # AGENT_REVIEWER can force one: agy | gemini | codex | claude. Empty = first available.
+  local pick="${AGENT_REVIEWER:-}"
+  if [ -z "$pick" ]; then
+    if [ -n "${GEMINI_API_KEY:-}" ]; then pick=gemini
+    elif [ -n "${OPENAI_API_KEY:-}" ]; then pick=codex
+    else pick=claude; fi
+  fi
+
+  if [ "$pick" = agy ]; then
+    echo "reviewer: Antigravity (${AGY_MODEL:-default model})"
+    agy_review
+  elif [ "$pick" = gemini ]; then
     echo "reviewer: Gemini (${GEMINI_MODEL:-default model})"
     review_bundle
     # plan = read-only approval mode: Gemini can read files but never edit or run commands.
     gemini -p "Review the change below. Everything you need is in this input; you may also read files in the repo for context. Reply with the review only, first line VERDICT: APPROVE or VERDICT: CHANGES_REQUESTED." \
       --approval-mode plan --skip-trust ${GEMINI_MODEL:+-m "$GEMINI_MODEL"} \
       < .agent/review-input.md > .agent/review.md
-  elif [ -n "${OPENAI_API_KEY:-}" ]; then
+  elif [ "$pick" = codex ]; then
     echo "reviewer: Codex"
     CODEX_API_KEY="$OPENAI_API_KEY" codex exec \
       --sandbox read-only \
