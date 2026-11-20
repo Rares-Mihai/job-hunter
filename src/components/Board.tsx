@@ -24,7 +24,7 @@ import {
   useTransition,
 } from "react";
 import { moveApplicationAction } from "@/app/actions";
-import { countByStatus, filterCards } from "@/lib/board";
+import { countByStatus, filterCards, filterClosingThisWeek } from "@/lib/board";
 import type { DeadlineInfo } from "@/lib/dates";
 import { isStatus, STATUS_LABELS, STATUSES, type Status } from "@/lib/status";
 
@@ -37,6 +37,8 @@ export type BoardCard = {
   deadline: DeadlineInfo | null;
   followUp: string | null;
   matchScore: number | null;
+  // Wishlist deadline is today or within 7 days.
+  closingThisWeek: boolean;
 };
 
 const STATUS_HIGHLIGHT: Record<Status, string> = {
@@ -102,6 +104,7 @@ export function Board({
   const [, startTransition] = useTransition();
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [closingOnly, setClosingOnly] = useState(false);
   // After a keyboard move the card is drawn again in its new column, which
   // would drop keyboard focus. This remembers which card to give it back to.
   const [refocusId, setRefocusId] = useState<string | null>(null);
@@ -168,8 +171,9 @@ export function Board({
 
   const draggedCard = shownCards.find((card) => card.id === draggedId) ?? null;
 
-  const filtering = query.trim() !== "";
-  const visibleCards = filterCards(shownCards, query);
+  const filtering = query.trim() !== "" || closingOnly;
+  const searched = filterCards(shownCards, query);
+  const visibleCards = closingOnly ? filterClosingThisWeek(searched) : searched;
   const counts = countByStatus(visibleCards);
 
   return (
@@ -214,6 +218,14 @@ export function Board({
           autoComplete="off"
           className="field w-72 max-w-full"
         />
+        <label className="flex items-center gap-2 font-semibold">
+          <input
+            type="checkbox"
+            checked={closingOnly}
+            onChange={(e) => setClosingOnly(e.target.checked)}
+          />
+          Closing this week
+        </label>
         <p aria-live="polite" className="text-ink-soft">
           {filtering &&
             `${visibleCards.length} of ${shownCards.length} shown`}

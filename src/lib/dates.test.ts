@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  closesWithinWeek,
   daysUntil,
   describeDeadline,
   parseDay,
@@ -67,6 +68,18 @@ describe("describeDeadline", () => {
       label: "Due 6 Dec",
       tone: "later",
     });
+  });
+});
+
+describe("closesWithinWeek", () => {
+  it.each([
+    ["2026-11-16", true],
+    ["2026-11-23", true],
+    ["2026-11-24", false],
+    ["2026-11-15", false],
+    ["soon", false],
+  ])("%s -> %s", (deadline, expected) => {
+    expect(closesWithinWeek(deadline, NOW)).toBe(expected);
   });
 });
 

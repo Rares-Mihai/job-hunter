@@ -37,6 +37,12 @@ export function daysUntil(deadline: string, now: Date): number | null {
   return Math.round((day.getTime() - utcMidnight(now)) / DAY_MS);
 }
 
+/** True when the deadline is today or within the next 7 days. */
+export function closesWithinWeek(deadline: string, now: Date): boolean {
+  const days = daysUntil(deadline, now);
+  return days !== null && days >= 0 && days <= 7;
+}
+
 /** Whole calendar days (UTC) from `date` until `now`. */
 export function daysSince(date: Date, now: Date): number {
   return Math.round((utcMidnight(now) - utcMidnight(date)) / DAY_MS);

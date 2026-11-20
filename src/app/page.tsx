@@ -9,7 +9,7 @@ import {
   listApplications,
 } from "@/lib/applications";
 import { computeStats } from "@/lib/stats";
-import { describeDeadline } from "@/lib/dates";
+import { closesWithinWeek, describeDeadline } from "@/lib/dates";
 import { followUpNudge } from "@/lib/follow-up";
 import { requireUser } from "@/lib/session";
 
@@ -67,6 +67,10 @@ async function BoardData() {
       application.status === "wishlist" && application.deadline
         ? describeDeadline(application.deadline, now)
         : null,
+    closingThisWeek:
+      application.status === "wishlist" && application.deadline
+        ? closesWithinWeek(application.deadline, now)
+        : false,
     followUp: followUpNudge(
       application.status,
       changesByApp.get(application.id) ?? [],

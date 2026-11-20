@@ -30,3 +30,12 @@ export function countByStatus(
   for (const card of cards) counts[card.status] += 1;
   return counts;
 }
+
+/** Keeps wishlist cards whose deadline is today or within 7 days. */
+export function filterClosingThisWeek<
+  T extends { status: Status; closingThisWeek: boolean },
+>(cards: T[]): T[] {
+  return cards.filter(
+    (card) => card.status === "wishlist" && card.closingThisWeek,
+  );
+}
