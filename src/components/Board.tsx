@@ -34,6 +34,7 @@ export type BoardCard = {
   location: string | null;
   status: Status;
   deadline: DeadlineInfo | null;
+  followUp: string | null;
   matchScore: number | null;
 };
 
@@ -363,6 +364,7 @@ function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
   // The deadline is the last day to apply, so it stops mattering once the
   // card has left the wishlist (including right after a drag).
   const deadline = card.status === "wishlist" ? card.deadline : null;
+  const followUp = card.status === "applied" ? card.followUp : null;
   return (
     <article className="relative rounded-md border border-line bg-surface px-3.5 py-3 hover:border-ink-soft">
       <h3 className="text-[1.05rem] font-bold">
@@ -383,7 +385,7 @@ function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
         {card.role}
         {card.location ? `, ${card.location}` : ""}
       </p>
-      {(deadline || card.matchScore !== null) && (
+      {(deadline || followUp || card.matchScore !== null) && (
         <p className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
           {deadline && (
             <span
@@ -395,6 +397,9 @@ function CardBody({ card, asLink }: { card: BoardCard; asLink: boolean }) {
             >
               {deadline.label}
             </span>
+          )}
+          {followUp && (
+            <span className="hl hl-yellow font-medium">{followUp}</span>
           )}
           {card.matchScore !== null && (
             <span className="ml-auto font-medium">

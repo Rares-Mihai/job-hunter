@@ -37,7 +37,12 @@ export function daysUntil(deadline: string, now: Date): number | null {
   return Math.round((day.getTime() - utcMidnight(now)) / DAY_MS);
 }
 
-export type DeadlineTone = "late" | "soon" | "later";
+/** Whole calendar days (UTC) from `date` until `now`. */
+export function daysSince(date: Date, now: Date): number {
+  return Math.round((utcMidnight(now) - utcMidnight(date)) / DAY_MS);
+}
+
+export type DeadlineTone= "late" | "soon" | "later";
 
 export type DeadlineInfo = { label: string; tone: DeadlineTone };
 

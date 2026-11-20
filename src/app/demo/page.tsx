@@ -19,6 +19,7 @@ const CARDS: BoardCard[] = [
     location: "Iași",
     status: "wishlist",
     deadline: { label: "Due in 3 days", tone: "soon" },
+    followUp: null,
     matchScore: null,
   },
   {
@@ -28,6 +29,7 @@ const CARDS: BoardCard[] = [
     location: "Remote",
     status: "wishlist",
     deadline: { label: "Due 6 Dec", tone: "later" },
+    followUp: null,
     matchScore: 64,
   },
   {
@@ -37,6 +39,7 @@ const CARDS: BoardCard[] = [
     location: "București",
     status: "applied",
     deadline: null,
+    followUp: null,
     matchScore: 72,
   },
   {
@@ -46,6 +49,7 @@ const CARDS: BoardCard[] = [
     location: "Cluj-Napoca",
     status: "applied",
     deadline: null,
+    followUp: "No reply in 12 days — follow up?",
     matchScore: null,
   },
   {
@@ -55,6 +59,7 @@ const CARDS: BoardCard[] = [
     location: "Iași",
     status: "interview",
     deadline: null,
+    followUp: null,
     matchScore: 81,
   },
   {
@@ -64,6 +69,7 @@ const CARDS: BoardCard[] = [
     location: "Timișoara",
     status: "offer",
     deadline: null,
+    followUp: null,
     matchScore: null,
   },
   {
@@ -73,6 +79,7 @@ const CARDS: BoardCard[] = [
     location: "București",
     status: "rejected",
     deadline: null,
+    followUp: null,
     matchScore: null,
   },
 ];
