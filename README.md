@@ -17,7 +17,8 @@ data too._
 
 - **Board.** One column per stage: Wishlist, Applied, Interview, Offer,
   Rejected. Drag a card to move it. Cards on the wishlist show how close the
-  application deadline is.
+  application deadline is, and cards that have sat in Applied for 10 or more
+  days suggest a follow-up.
 - **Application page.** Company, role, link, location, deadline, notes and the
   full text of the posting, plus a history of every stage change.
 - **Import from a link.** Paste the address of a job page and the company,

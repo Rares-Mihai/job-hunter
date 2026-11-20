@@ -10,6 +10,7 @@ import {
 } from "@/lib/applications";
 import { computeStats } from "@/lib/stats";
 import { describeDeadline } from "@/lib/dates";
+import { followUpNudge } from "@/lib/follow-up";
 import { requireUser } from "@/lib/session";
 
 export default function BoardPage() {
@@ -48,6 +49,12 @@ async function BoardData() {
     getWeeklyTarget(user.id),
   ]);
   const stats = computeStats(applications, changes, now);
+  const changesByApp = new Map<string, typeof changes>();
+  for (const change of changes) {
+    const list = changesByApp.get(change.applicationId);
+    if (list) list.push(change);
+    else changesByApp.set(change.applicationId, [change]);
+  }
   const cards: BoardCard[] = applications.map((application) => ({
     id: application.id,
     company: application.company,
@@ -60,6 +67,12 @@ async function BoardData() {
       application.status === "wishlist" && application.deadline
         ? describeDeadline(application.deadline, now)
         : null,
+    followUp: followUpNudge(
+      application.status,
+      changesByApp.get(application.id) ?? [],
+      now,
+      application.createdAt,
+    ),
     matchScore: application.match?.score ?? null,
   }));
 
