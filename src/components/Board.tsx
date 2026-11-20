@@ -24,6 +24,7 @@ import {
   useTransition,
 } from "react";
 import { moveApplicationAction } from "@/app/actions";
+import { countByStatus, filterCards } from "@/lib/board";
 import type { DeadlineInfo } from "@/lib/dates";
 import { isStatus, STATUS_LABELS, STATUSES, type Status } from "@/lib/status";
 
@@ -167,15 +168,9 @@ export function Board({
 
   const draggedCard = shownCards.find((card) => card.id === draggedId) ?? null;
 
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const visibleCards =
-    words.length === 0
-      ? shownCards
-      : shownCards.filter((card) => {
-          const text =
-            `${card.company} ${card.role} ${card.location ?? ""}`.toLowerCase();
-          return words.every((word) => text.includes(word));
-        });
+  const filtering = query.trim() !== "";
+  const visibleCards = filterCards(shownCards, query);
+  const counts = countByStatus(visibleCards);
 
   return (
     <DndContext
@@ -220,7 +215,7 @@ export function Board({
           className="field w-72 max-w-full"
         />
         <p aria-live="polite" className="text-ink-soft">
-          {words.length > 0 &&
+          {filtering &&
             `${visibleCards.length} of ${shownCards.length} shown`}
         </p>
       </div>
@@ -232,7 +227,8 @@ export function Board({
               key={status}
               status={status}
               cards={visibleCards.filter((card) => card.status === status)}
-              filtering={words.length > 0}
+              count={counts[status]}
+              filtering={filtering}
               draggedId={draggedId}
               linked={!demo}
               refocusId={refocusId}
@@ -254,11 +250,13 @@ export function Board({
 function Column({
   status,
   cards,
+  count,
   draggedId,
   linked,
   filtering,
   refocusId,
 }: {
+  count: number;
   refocusId: string | null;
   status: Status;
   cards: BoardCard[];
@@ -275,13 +273,9 @@ function Column({
         id={headingId}
         className="flex items-baseline gap-2 text-[1.35rem] font-bold"
       >
-        {STATUS_LABELS[status]}
+        {STATUS_LABELS[status]}{" "}
         <span className="font-sans text-base font-medium text-ink-soft">
-          <span className="sr-only">, </span>
-          {cards.length}
-          <span className="sr-only">
-            {cards.length === 1 ? " application" : " applications"}
-          </span>
+          ({count})
         </span>
       </h2>
       <div

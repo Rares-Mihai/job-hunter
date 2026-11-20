@@ -31,6 +31,9 @@ function column(page: Page, stage: string) {
   return page.locator(`section[aria-labelledby="column-${stage}"]`);
 }
 
+const heading = (page: Page, stage: string) =>
+  column(page, stage).getByRole("heading", { level: 2 });
+
 async function drag(page: Page, company: string, stage: string) {
   const card = await page
     .locator("article", { hasText: company })
@@ -64,8 +67,12 @@ test("the demo board works without an account", async ({ page }) => {
   await expect(
     column(page, "wishlist").getByRole("heading", { level: 3 }),
   ).toHaveCount(2);
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (2)");
+  await expect(heading(page, "applied")).toHaveText("Applied (2)");
 
   await drag(page, "Northwind Labs", "applied");
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (1)");
+  await expect(heading(page, "applied")).toHaveText("Applied (3)");
   await expect(column(page, "applied")).toContainText("Northwind Labs");
 });
 
@@ -92,10 +99,14 @@ test("track an application from wishlist to offer", async ({
   await page.getByLabel("Find").fill("amazon");
   await expect(page.getByText("1 of 2 shown")).toBeVisible();
   await expect(column(page, "wishlist")).not.toContainText("Endava");
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (1)");
   await page.getByLabel("Find").fill("");
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (2)");
 
   await drag(page, "Endava", "applied");
   await expect(column(page, "applied")).toContainText("Endava");
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (1)");
+  await expect(heading(page, "applied")).toHaveText("Applied (1)");
   await expect(page.getByLabel("This week's goal")).toContainText(
     "1 of 5 sent",
   );
@@ -231,6 +242,8 @@ test("move a card with the keyboard", async ({ page, context }) => {
   await page.keyboard.press("Space");
   await said("Keyboard Co moved to Interview.");
   await expect(column(page, "interview")).toContainText("Keyboard Co");
+  await expect(heading(page, "wishlist")).toHaveText("Wishlist (0)");
+  await expect(heading(page, "interview")).toHaveText("Interview (1)");
   // Focus stays on the card that was moved, ready for the next key press.
   await expect(moveButton).toBeFocused();
 
