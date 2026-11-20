@@ -21,6 +21,7 @@ const CARDS: BoardCard[] = [
     deadline: { label: "Due in 3 days", tone: "soon" },
     followUp: null,
     matchScore: null,
+    closingThisWeek: true,
   },
   {
     id: "2",
@@ -31,6 +32,7 @@ const CARDS: BoardCard[] = [
     deadline: { label: "Due 6 Dec", tone: "later" },
     followUp: null,
     matchScore: 64,
+    closingThisWeek: false,
   },
   {
     id: "3",
@@ -41,6 +43,7 @@ const CARDS: BoardCard[] = [
     deadline: null,
     followUp: null,
     matchScore: 72,
+    closingThisWeek: false,
   },
   {
     id: "4",
@@ -51,6 +54,7 @@ const CARDS: BoardCard[] = [
     deadline: null,
     followUp: "No reply in 12 days — follow up?",
     matchScore: null,
+    closingThisWeek: false,
   },
   {
     id: "5",
@@ -61,6 +65,7 @@ const CARDS: BoardCard[] = [
     deadline: null,
     followUp: null,
     matchScore: 81,
+    closingThisWeek: false,
   },
   {
     id: "6",
@@ -71,6 +76,7 @@ const CARDS: BoardCard[] = [
     deadline: null,
     followUp: null,
     matchScore: null,
+    closingThisWeek: false,
   },
   {
     id: "7",
@@ -81,6 +87,7 @@ const CARDS: BoardCard[] = [
     deadline: null,
     followUp: null,
     matchScore: null,
+    closingThisWeek: false,
   },
 ];
 

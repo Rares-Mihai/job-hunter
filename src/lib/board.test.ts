@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countByStatus, filterCards } from "./board";
+import { countByStatus, filterCards, filterClosingThisWeek } from "./board";
 import type { Status } from "./status";
 
 const card = (
@@ -71,5 +71,34 @@ describe("filterCards", () => {
 
   it("returns everything for a blank query", () => {
     expect(filterCards(cards, "   ")).toHaveLength(cards.length);
+  });
+});
+
+describe("filterClosingThisWeek", () => {
+  // A card without a deadline gets closingThisWeek: false in page.tsx.
+  const mk = (company: string, status: Status, closingThisWeek: boolean) => ({
+    company,
+    role: "Intern",
+    location: null,
+    status,
+    closingThisWeek,
+  });
+  const list = [
+    mk("Amazon", "wishlist", true),
+    mk("Amazon Labs", "wishlist", false),
+    mk("Endava", "wishlist", true),
+    mk("Amazon Web Services", "applied", true),
+  ];
+
+  it("keeps only closing wishlist cards", () => {
+    expect(filterClosingThisWeek(list).map((c) => c.company)).toEqual([
+      "Amazon",
+      "Endava",
+    ]);
+  });
+
+  it("combines with search", () => {
+    const result = filterClosingThisWeek(filterCards(list, "amazon"));
+    expect(result.map((c) => c.company)).toEqual(["Amazon"]);
   });
 });
